@@ -1,4 +1,4 @@
-# 读书网站 - 数据库设计文档（MySQL版）
+# 读书网站 - 数据库设计文档（MySQL版 - 简化版）
 
 ## 📌 设计原则
 
@@ -17,9 +17,9 @@
 **字符集**：`utf8mb4`（支持emoji）
 **排序规则**：`utf8mb4_unicode_ci`
 
-### 主要表结构
+### 主要表结构（8张表）
 1. `t_user` - 用户表
-2. `t_novel` - 小说表
+2. `t_novel` - 小说表（含前三章AI概括）
 3. `t_novel_tag` - 小说标签关联表
 4. `t_favorite` - 收藏表
 5. `t_category` - 收藏分类表
@@ -50,19 +50,6 @@ CREATE TABLE t_user (
     INDEX idx_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户表';
 ```
-
-| 字段 | 类型 | 说明 | 必填 |
-|------|------|------|------|
-| id | BIGINT | 主键 | ✅ |
-| username | VARCHAR(50) | 用户名 | ✅ |
-| email | VARCHAR(100) | 邮箱 | ✅ |
-| password | VARCHAR(255) | 密码（BCrypt加密） | ✅ |
-| nickname | VARCHAR(50) | 昵称 | ❌ |
-| avatar_url | VARCHAR(500) | 头像URL | ❌ |
-| status | TINYINT | 状态（0-禁用, 1-正常） | ✅ |
-| deleted | TINYINT | 是否删除 | ✅ |
-| created_at | DATETIME | 创建时间 | ✅ |
-| updated_at | DATETIME | 更新时间 | ✅ |
 
 ---
 
@@ -99,29 +86,10 @@ CREATE TABLE t_novel (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='小说表';
 ```
 
-| 字段 | 类型 | 说明 | 必填 |
-|------|------|------|------|
-| id | BIGINT | 主键 | ✅ |
-| platform | VARCHAR(50) | 平台来源 | ✅ |
-| novel_id | VARCHAR(100) | 平台内唯一ID | ✅ |
-| title | VARCHAR(200) | 书名 | ✅ |
-| author | VARCHAR(100) | 作者 | ❌ |
-| description | TEXT | 简介 | ❌ |
-| cover_url | VARCHAR(500) | 封面URL | ❌ |
-| latest_chapter_title | VARCHAR(200) | 最新章节标题 | ❌ |
-| latest_update_time | DATETIME | 最新更新时间 | ❌ |
-| first_chapter_summary | TEXT | 第1章AI概括 | ❌ |
-| second_chapter_summary | TEXT | 第2章AI概括 | ❌ |
-| third_chapter_summary | TEXT | 第3章AI概括 | ❌ |
-| last_crawl_time | DATETIME | 最后抓取时间 | ❌ |
-| crawl_count | INT | 抓取次数 | ✅ |
-| status | TINYINT | 状态 | ✅ |
-| deleted | TINYINT | 是否删除 | ✅ |
-| created_at | DATETIME | 创建时间 | ✅ |
-| updated_at | DATETIME | 更新时间 | ✅ |
-
-**唯一约束**：(platform, novel_id)
-**全文索引**：title、author（MySQL全文搜索）
+**说明**：
+- `first_chapter_summary`、`second_chapter_summary`、`third_chapter_summary`：存储前3章的AI概括
+- 只在首次抓取时生成AI概括，增量更新时不再重新生成
+- 不存储章节具体内容，只存储AI概括
 
 ---
 
@@ -139,58 +107,9 @@ CREATE TABLE t_novel_tag (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='小说标签关联表';
 ```
 
-| 字段 | 类型 | 说明 | 必填 |
-|------|------|------|------|
-| id | BIGINT | 主键 | ✅ |
-| novel_id | BIGINT | 小说ID（外键） | ✅ |
-| tag_name | VARCHAR(50) | 标签名 | ✅ |
-| created_at | DATETIME | 创建时间 | ✅ |
-
-**外键**：novel_id → t_novel(id) ON DELETE CASCADE
-
 ---
 
-### 4. 章节表 (t_chapter)
-
-```sql
-CREATE TABLE t_chapter (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '章节ID',
-    novel_id BIGINT NOT NULL COMMENT '小说ID',
-    chapter_id VARCHAR(100) NOT NULL COMMENT '章节ID',
-    chapter_title VARCHAR(200) NOT NULL COMMENT '章节标题',
-    chapter_content LONGTEXT COMMENT '章节内容',
-    ai_summary TEXT COMMENT 'AI生成的概括',
-    is_latest TINYINT DEFAULT 0 COMMENT '是否最新章节：0-否, 1-是',
-    chapter_order INT COMMENT '章节序号',
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    UNIQUE KEY uk_novel_chapter (novel_id, chapter_id),
-    INDEX idx_novel_id (novel_id),
-    INDEX idx_chapter_order (novel_id, chapter_order),
-    INDEX idx_is_latest (is_latest),
-    FOREIGN KEY (novel_id) REFERENCES t_novel(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='章节表';
-```
-
-| 字段 | 类型 | 说明 | 必填 |
-|------|------|------|------|
-| id | BIGINT | 主键 | ✅ |
-| novel_id | BIGINT | 小说ID（外键） | ✅ |
-| chapter_id | VARCHAR(100) | 章节ID | ✅ |
-| chapter_title | VARCHAR(200) | 章节标题 | ✅ |
-| chapter_content | LONGTEXT | 章节内容 | ❌ |
-| ai_summary | TEXT | AI概括 | ❌ |
-| is_latest | TINYINT | 是否最新章节 | ✅ |
-| chapter_order | INT | 章节序号 | ❌ |
-| created_at | DATETIME | 创建时间 | ✅ |
-| updated_at | DATETIME | 更新时间 | ✅ |
-
-**唯一约束**：(novel_id, chapter_id)
-**外键**：novel_id → t_novel(id) ON DELETE CASCADE
-
----
-
-### 5. 收藏表 (t_favorite)
+### 4. 收藏表 (t_favorite)
 
 ```sql
 CREATE TABLE t_favorite (
@@ -209,22 +128,9 @@ CREATE TABLE t_favorite (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='收藏表';
 ```
 
-| 字段 | 类型 | 说明 | 必填 |
-|------|------|------|------|
-| id | BIGINT | 主键 | ✅ |
-| user_id | BIGINT | 用户ID（外键） | ✅ |
-| novel_id | BIGINT | 小说ID（外键） | ✅ |
-| note | VARCHAR(500) | 备注 | ❌ |
-| created_at | DATETIME | 创建时间 | ✅ |
-| updated_at | DATETIME | 更新时间 | ✅ |
-
-**唯一约束**：(user_id, novel_id)
-**外键**：user_id → t_user(id) ON DELETE CASCADE
-**外键**：novel_id → t_novel(id) ON DELETE CASCADE
-
 ---
 
-### 6. 收藏分类表 (t_category)
+### 5. 收藏分类表 (t_category)
 
 ```sql
 CREATE TABLE t_category (
@@ -242,22 +148,9 @@ CREATE TABLE t_category (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='收藏分类表';
 ```
 
-| 字段 | 类型 | 说明 | 必填 |
-|------|------|------|------|
-| id | BIGINT | 主键 | ✅ |
-| user_id | BIGINT | 用户ID（外键） | ✅ |
-| name | VARCHAR(50) | 分类名称 | ✅ |
-| description | VARCHAR(200) | 描述 | ❌ |
-| sort_order | INT | 排序序号 | ✅ |
-| deleted | TINYINT | 是否删除 | ✅ |
-| created_at | DATETIME | 创建时间 | ✅ |
-| updated_at | DATETIME | 更新时间 | ✅ |
-
-**外键**：user_id → t_user(id) ON DELETE CASCADE
-
 ---
 
-### 7. 收藏与分类关联表 (t_favorite_category)
+### 6. 收藏与分类关联表 (t_favorite_category)
 
 ```sql
 CREATE TABLE t_favorite_category (
@@ -273,20 +166,9 @@ CREATE TABLE t_favorite_category (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='收藏与分类关联表';
 ```
 
-| 字段 | 类型 | 说明 | 必填 |
-|------|------|------|------|
-| id | BIGINT | 主键 | ✅ |
-| favorite_id | BIGINT | 收藏ID（外键） | ✅ |
-| category_id | BIGINT | 分类ID（外键） | ✅ |
-| created_at | DATETIME | 创建时间 | ✅ |
-
-**唯一约束**：(favorite_id, category_id)
-**外键**：favorite_id → t_favorite(id) ON DELETE CASCADE
-**外键**：category_id → t_category(id) ON DELETE CASCADE
-
 ---
 
-### 6. 爬虫任务表 (t_crawler_task)
+### 7. 爬虫任务表 (t_crawler_task)
 
 ```sql
 CREATE TABLE t_crawler_task (
@@ -307,23 +189,9 @@ CREATE TABLE t_crawler_task (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='爬虫任务表';
 ```
 
-| 字段 | 类型 | 说明 | 必填 |
-|------|------|------|------|
-| id | BIGINT | 主键 | ✅ |
-| platform | VARCHAR(50) | 平台名称 | ✅ |
-| task_name | VARCHAR(100) | 任务名称 | ✅ |
-| status | VARCHAR(20) | 状态 | ✅ |
-| start_time | DATETIME | 开始时间 | ❌ |
-| end_time | DATETIME | 结束时间 | ❌ |
-| total_count | INT | 总数 | ✅ |
-| success_count | INT | 成功数 | ✅ |
-| failed_count | INT | 失败数 | ✅ |
-| error_message | TEXT | 错误信息 | ❌ |
-| created_at | DATETIME | 创建时间 | ✅ |
-
 ---
 
-### 7. 爬虫配置表 (t_crawler_config)
+### 8. 爬虫配置表 (t_crawler_config)
 
 ```sql
 CREATE TABLE t_crawler_config (
@@ -339,20 +207,6 @@ CREATE TABLE t_crawler_config (
     UNIQUE KEY uk_platform (platform)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='爬虫配置表';
 ```
-
-| 字段 | 类型 | 说明 | 必填 |
-|------|------|------|------|
-| id | BIGINT | 主键 | ✅ |
-| platform | VARCHAR(50) | 平台名称 | ✅ |
-| base_url | VARCHAR(255) | 平台基础URL | ✅ |
-| enabled | TINYINT | 是否启用 | ✅ |
-| tags | TEXT | 标签列表（JSON数组） | ❌ |
-| interval_hours | INT | 抓取间隔（小时） | ✅ |
-| max_retry | INT | 最大重试次数 | ✅ |
-| created_at | DATETIME | 创建时间 | ✅ |
-| updated_at | DATETIME | 更新时间 | ✅ |
-
-**唯一约束**：platform
 
 **初始数据**：
 ```sql
@@ -383,24 +237,8 @@ t_crawler_config (爬虫配置) [独立]
 
 ---
 
-## 📊 索引策略
-
-### 1. 查询优化索引
-- 小说列表：`idx_update_time`（最新更新）
-- 搜索功能：全文搜索索引 `FULLTEXT`
-- 用户收藏：`idx_user_id` + `idx_created_at`
-
-### 2. 唯一索引
-- 防止重复：`(platform, novel_id)`、`(user_id, novel_id)`
-
-### 3. 外键索引
-- 所有外键字段自动创建索引
-
----
-
 ## 💾 数据库初始化脚本
 
-### 创建数据库
 ```sql
 -- 创建数据库
 CREATE DATABASE IF NOT EXISTS novel_reader
@@ -426,20 +264,8 @@ INSERT INTO t_user (username, email, password, nickname, status) VALUES
 
 ---
 
-## 🧪 数据测试
-
-### 测试数据量
-- 用户：100条
-- 小说：1000条
-- 标签：5000条
-- 章节：3000条
-- 收藏：500条
-
----
-
 ## 📝 MySQL全文搜索
 
-### 使用方法
 ```sql
 -- 标题搜索
 SELECT * FROM t_novel
@@ -448,17 +274,25 @@ WHERE MATCH(title) AGAINST('修仙' IN BOOLEAN MODE);
 -- 作者搜索
 SELECT * FROM t_novel
 WHERE MATCH(author) AGAINST('作者名' IN BOOLEAN MODE);
-
--- 标题+作者联合搜索
-SELECT * FROM t_novel
-WHERE MATCH(title, author) AGAINST('修仙 作者名' IN BOOLEAN MODE);
 ```
+
+---
+
+## 📝 数据变更说明
+
+### 简化内容
+1. ❌ **删除章节表（t_chapter）**：不再存储具体章节内容
+2. ❌ **删除更新日志表（t_update_log）**：不再记录更新历史
+3. ✅ **新增AI概括字段**：在小说表中存储前3章的AI概括
+4. ✅ **简化爬虫流程**：
+   - 首次抓取：抓取前3章 + AI概括
+   - 增量更新：只更新小说基本信息，不抓取章节
 
 ---
 
 ## 📝 下一步
 
-数据库设计已完成（MySQL版），下一步将进行：
+数据库设计已完成（MySQL简化版），下一步将进行：
 1. 后端API设计
 2. 前端页面设计
 3. **爬虫功能设计**（优先级最高）
