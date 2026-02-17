@@ -66,9 +66,7 @@ CREATE TABLE t_novel (
     cover_url VARCHAR(500) COMMENT '封面URL',
     latest_chapter_title VARCHAR(200) COMMENT '最新章节标题',
     latest_update_time DATETIME COMMENT '最新更新时间',
-    first_chapter_summary TEXT COMMENT '第1章AI概括',
-    second_chapter_summary TEXT COMMENT '第2章AI概括',
-    third_chapter_summary TEXT COMMENT '第3章AI概括',
+    first_chapters_summary JSON COMMENT '前3章AI概括（JSON数组）',
     last_crawl_time DATETIME COMMENT '最后抓取时间',
     crawl_count INT DEFAULT 0 COMMENT '抓取次数',
     status TINYINT DEFAULT 1 COMMENT '状态：0-停更, 1-连载, 2-完结',
@@ -87,7 +85,27 @@ CREATE TABLE t_novel (
 ```
 
 **说明**：
-- `first_chapter_summary`、`second_chapter_summary`、`third_chapter_summary`：存储前3章的AI概括
+- `first_chapters_summary`：存储前3章的AI概括（JSON数组格式）
+- JSON格式示例：
+  ```json
+  [
+    {
+      "chapter": 1,
+      "title": "第一章 修炼开始",
+      "summary": "主角开始修炼，遇到了..."
+    },
+    {
+      "chapter": 2,
+      "title": "第二章 突破",
+      "summary": "主角突破到练气期..."
+    },
+    {
+      "chapter": 3,
+      "title": "第三章 出山",
+      "summary": "主角出山历练..."
+    }
+  ]
+  ```
 - 只在首次抓取时生成AI概括，增量更新时不再重新生成
 - 不存储章节具体内容，只存储AI概括
 
