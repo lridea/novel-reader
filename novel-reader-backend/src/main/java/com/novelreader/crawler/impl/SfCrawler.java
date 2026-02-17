@@ -15,8 +15,6 @@ import org.jsoup.select.Elements;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -29,14 +27,14 @@ import java.util.regex.Pattern;
 
 @Slf4j
 @Component
-public class CiweimaoCrawler implements BaseCrawler {
+public class SfCrawler implements BaseCrawler {
 
-    private static final String PLATFORM = "ciweimao";
-    private static final String BASE_URL = "https://www.ciweimao.com";
+    private static final String PLATFORM = "sf";
+    private static final String BASE_URL = "https://book.sfacg.com";
 
-    private static final Pattern BOOK_ID_PATTERN = Pattern.compile("/book/(\\d+)");
-    private static final Pattern CHAPTER_ID_PATTERN = Pattern.compile("/chapter/(\\d+)");
-    private static final Pattern TIME_PATTERN = Pattern.compile("(\\d{4}-\\d{2}-\\d{2}\\s+\\d{2}:\\d{2}:\\d{2})");
+    private static final Pattern NOVEL_ID_PATTERN = Pattern.compile("/Novel/(\\d+)");
+    private static final Pattern CHAPTER_ID_PATTERN = Pattern.compile("/Novel/\\d+/\\d+/(\\d+)");
+    private static final Pattern WORD_COUNT_PATTERN = Pattern.compile("(\\d+)字");
 
     private static final int MIN_DELAY_MS = 500;
     private static final int MAX_DELAY_MS = 1000;
@@ -67,14 +65,14 @@ public class CiweimaoCrawler implements BaseCrawler {
 
     @Override
     public CrawlResult<List<Novel>> crawlNovelList(List<String> tags, LocalDateTime sinceTime) {
-        log.info("开始抓取刺猬猫小说列表，标签: {}, 增量时间: {}", tags, sinceTime);
+        log.info("开始抓取SF轻小说列表，标签: {}, 增量时间: {}", tags, sinceTime);
 
         List<Novel> novels = new ArrayList<>();
         AtomicBoolean shouldStop = new AtomicBoolean(false);
 
         try {
             for (int page = 1; page <= MAX_PAGES && !shouldStop.get(); page++) {
-                String pageUrl = buildListUrl(null, page);
+                String pageUrl = buildListUrl(page);
                 log.info("抓取第 {} 页: {}", page, pageUrl);
 
                 List<Novel> pageNovels = crawlListPage(pageUrl, tags, sinceTime, shouldStop);
@@ -100,23 +98,12 @@ public class CiweimaoCrawler implements BaseCrawler {
             log.error("抓取列表页失败: {}", e.getMessage(), e);
         }
 
-        log.info("刺猬猫爬虫完成，共抓取 {} 本小说", novels.size());
+        log.info("SF轻小说爬虫完成，共抓取 {} 本小说", novels.size());
         return CrawlResult.success(novels);
     }
 
-    private String buildListUrl(String tag, int page) {
-        StringBuilder url = new StringBuilder(BASE_URL);
-        url.append("/get-search-book-list/0-0-uptime-3-0-0/");
-        
-        if (tag != null && !tag.isEmpty()) {
-            url.append(URLEncoder.encode(tag, StandardCharsets.UTF_8));
-        } else {
-            url.append(URLEncoder.encode("全部", StandardCharsets.UTF_8));
-        }
-        
-        url.append("//").append(page);
-        
-        return url.toString();
+    private String buildListUrl(int page) {
+        return BASE_URL + "/List/default.aspx?ud=7&PageIndex=" + page;
     }
 
     private List<Novel> crawlListPage(String url, List<String> filterTags, LocalDateTime sinceTime, AtomicBoolean shouldStop) {
@@ -133,13 +120,8 @@ public class CiweimaoCrawler implements BaseCrawler {
                 String html = response.body().string();
                 Document doc = Jsoup.parse(html);
 
-                Elements novelElements = doc.select(".rank-book-list li[data-book-id]");
+                Elements novelElements = doc.select("ul.Comic_Pic_List");
                 log.info("找到 {} 个小说元素", novelElements.size());
-
-                if (novelElements.isEmpty()) {
-                    novelElements = doc.select(".rank-book-list li");
-                    log.info("尝试其他选择器，找到 {} 个元素", novelElements.size());
-                }
 
                 for (Element element : novelElements) {
                     Novel basicNovel = parseListNovelElement(element);
@@ -206,34 +188,32 @@ public class CiweimaoCrawler implements BaseCrawler {
             Novel novel = new Novel();
             novel.setPlatform(PLATFORM);
 
-            String bookId = element.attr("data-book-id");
-            if (bookId == null || bookId.isEmpty()) {
-                Element linkElement = element.select("a[href*=/book/]").first();
-                if (linkElement != null) {
-                    bookId = extractBookId(linkElement.attr("href"));
+            Element linkElement = element.select("li.Conjunction a, a[href*=/Novel/]").first();
+            if (linkElement != null) {
+                String href = linkElement.attr("href");
+                String novelId = extractNovelId(href);
+                novel.setNovelId(novelId);
+
+                Element imgElement = linkElement.select("img").first();
+                if (imgElement != null) {
+                    String coverUrl = imgElement.attr("src");
+                    if (coverUrl != null && !coverUrl.isEmpty()) {
+                        if (coverUrl.startsWith("//")) {
+                            coverUrl = "https:" + coverUrl;
+                        }
+                        novel.setCoverUrl(coverUrl);
+                    }
                 }
             }
-            novel.setNovelId(bookId);
 
-            Element titleElement = element.select(".tit a").first();
+            Element titleElement = element.select("strong a, a[style*='color: #FF6600']").first();
             if (titleElement != null) {
                 novel.setTitle(titleElement.text().trim());
             }
 
-            Element authorElement = element.select(".cnt p:contains(作者) a, .cnt p:eq(1) a").first();
+            Element authorElement = element.select("a[id*=AuthorLink]").first();
             if (authorElement != null) {
                 novel.setAuthor(authorElement.text().trim());
-            }
-
-            Element coverElement = element.select(".cover img").first();
-            if (coverElement != null) {
-                String coverUrl = coverElement.attr("src");
-                if (coverUrl != null && !coverUrl.isEmpty() && !coverUrl.contains("data:image")) {
-                    if (coverUrl.startsWith("//")) {
-                        coverUrl = "https:" + coverUrl;
-                    }
-                    novel.setCoverUrl(coverUrl);
-                }
             }
 
             if (novel.getTitle() == null || novel.getTitle().isEmpty()) {
@@ -249,10 +229,10 @@ public class CiweimaoCrawler implements BaseCrawler {
 
     @Override
     public Novel crawlNovelDetail(String novelId) {
-        log.info("开始抓取刺猬猫小说详情，novelId: {}", novelId);
+        log.info("开始抓取SF轻小说详情，novelId: {}", novelId);
 
         try {
-            String url = BASE_URL + "/book/" + novelId;
+            String url = BASE_URL + "/Novel/" + novelId + "/";
             Request request = buildRequest(url);
 
             try (Response response = executeWithRetry(request)) {
@@ -277,27 +257,41 @@ public class CiweimaoCrawler implements BaseCrawler {
         novel.setPlatform(PLATFORM);
         novel.setNovelId(novelId);
 
-        Element bookNameMeta = doc.select("meta[property=og:novel:book_name]").first();
-        if (bookNameMeta != null) {
-            novel.setTitle(bookNameMeta.attr("content"));
+        Element titleElement = doc.select("h1.title .text").first();
+        if (titleElement != null) {
+            novel.setTitle(titleElement.ownText().trim());
         }
 
-        Element authorMeta = doc.select("meta[property=og:novel:author]").first();
-        if (authorMeta != null) {
-            novel.setAuthor(authorMeta.attr("content"));
+        Element authorElement = doc.select(".author-name span").first();
+        if (authorElement != null) {
+            novel.setAuthor(authorElement.text().trim());
         }
 
-        Elements labelElements = doc.select(".label-box .label");
-        if (!labelElements.isEmpty()) {
-            List<String> tags = new ArrayList<>();
-            for (Element labelElement : labelElements) {
-                String tag;
-                Element aElement = labelElement.select("a").first();
-                if (aElement != null) {
-                    tag = aElement.text().trim();
-                } else {
-                    tag = labelElement.ownText().trim();
+        Elements textRows = doc.select(".text-row .text");
+        for (Element textRow : textRows) {
+            String text = textRow.text();
+            if (text.startsWith("字数：")) {
+                String wordInfo = text.replace("字数：", "");
+                Matcher wordMatcher = WORD_COUNT_PATTERN.matcher(wordInfo);
+                if (wordMatcher.find()) {
+                    novel.setWordCount(Long.parseLong(wordMatcher.group(1)));
                 }
+                if (wordInfo.contains("连载中")) {
+                    novel.setStatus(0);
+                } else if (wordInfo.contains("完结")) {
+                    novel.setStatus(1);
+                }
+            } else if (text.startsWith("更新：")) {
+                String timeStr = text.replace("更新：", "").trim();
+                novel.setLatestUpdateTime(parseDateTime(timeStr));
+            }
+        }
+
+        Elements tagElements = doc.select(".tag-list .tag .text");
+        if (!tagElements.isEmpty()) {
+            List<String> tags = new ArrayList<>();
+            for (Element tagElement : tagElements) {
+                String tag = tagElement.text().trim();
                 if (!tag.isEmpty()) {
                     tags.add(tag);
                 }
@@ -307,9 +301,14 @@ public class CiweimaoCrawler implements BaseCrawler {
             }
         }
 
-        Element imageMeta = doc.select("meta[property=og:image]").first();
-        if (imageMeta != null) {
-            String coverUrl = imageMeta.attr("content");
+        Element descElement = doc.select(".introduce, .summary").first();
+        if (descElement != null) {
+            novel.setDescription(descElement.text().trim());
+        }
+
+        Element coverElement = doc.select(".cover img, .summary-pic img").first();
+        if (coverElement != null) {
+            String coverUrl = coverElement.attr("src");
             if (coverUrl != null && !coverUrl.isEmpty()) {
                 if (coverUrl.startsWith("//")) {
                     coverUrl = "https:" + coverUrl;
@@ -318,50 +317,19 @@ public class CiweimaoCrawler implements BaseCrawler {
             }
         }
 
-        Element descMeta = doc.select("meta[property=og:description]").first();
-        if (descMeta != null) {
-            novel.setDescription(descMeta.attr("content"));
-        }
-
-        Element updateTimeElement = doc.select(".update-time").first();
-        if (updateTimeElement != null) {
-            String updateText = updateTimeElement.text().trim();
-            Matcher matcher = TIME_PATTERN.matcher(updateText);
-            if (matcher.find()) {
-                String timeStr = matcher.group(1);
-                novel.setLatestUpdateTime(parseDateTime(timeStr));
-            }
-        }
-
-        Element statusElement = doc.select(".update-state").first();
-        if (statusElement != null) {
-            String status = statusElement.text().trim();
-            if (status.contains("完结")) {
-                novel.setStatus(1);
-            } else {
-                novel.setStatus(0);
-            }
-        }
-
-        Element wordCountElement = doc.select(".book-grade b:eq(2)").first();
-        if (wordCountElement != null) {
-            String wordCount = wordCountElement.text().trim();
-            novel.setWordCount(parseWordCount(wordCount));
-        }
-
         return novel;
     }
 
     @Override
     public List<Chapter> fetchChapters(String novelId, int count) {
-        log.info("开始抓取刺猬猫小说前 {} 章，novelId: {}", count, novelId);
+        log.info("开始抓取SF轻小说前 {} 章，novelId: {}", count, novelId);
 
         List<Chapter> chapters = new ArrayList<>();
 
         try {
             randomDelay();
             
-            String url = BASE_URL + "/book/" + novelId;
+            String url = BASE_URL + "/Novel/" + novelId + "/MainIndex/";
             Request request = buildRequest(url);
 
             try (Response response = executeWithRetry(request)) {
@@ -373,12 +341,12 @@ public class CiweimaoCrawler implements BaseCrawler {
                 String html = response.body().string();
                 Document doc = Jsoup.parse(html);
 
-                Elements chapterElements = doc.select(".book-chapter-list li a");
+                Elements chapterElements = doc.select(".catalog-list li a");
 
                 int fetchCount = Math.min(count, chapterElements.size());
                 for (int i = 0; i < fetchCount; i++) {
                     Element chapterElement = chapterElements.get(i);
-                    Chapter chapter = parseChapterElement(chapterElement, i + 1);
+                    Chapter chapter = parseChapterElement(chapterElement, i + 1, novelId);
                     if (chapter != null) {
                         chapters.add(chapter);
                     }
@@ -393,7 +361,7 @@ public class CiweimaoCrawler implements BaseCrawler {
         return chapters;
     }
 
-    private Chapter parseChapterElement(Element element, int chapterNum) {
+    private Chapter parseChapterElement(Element element, int chapterNum, String novelId) {
         try {
             Chapter chapter = new Chapter();
             chapter.setChapter(chapterNum);
@@ -426,6 +394,7 @@ public class CiweimaoCrawler implements BaseCrawler {
                 .header("User-Agent", userAgent)
                 .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8")
                 .header("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8")
+                .header("Accept-Encoding", "gzip, deflate, br")
                 .header("Connection", "keep-alive")
                 .header("Referer", BASE_URL)
                 .header("Cache-Control", "max-age=0")
@@ -476,11 +445,11 @@ public class CiweimaoCrawler implements BaseCrawler {
         }
     }
 
-    private String extractBookId(String url) {
+    private String extractNovelId(String url) {
         if (url == null || url.isEmpty()) {
             return "";
         }
-        Matcher matcher = BOOK_ID_PATTERN.matcher(url);
+        Matcher matcher = NOVEL_ID_PATTERN.matcher(url);
         if (matcher.find()) {
             return matcher.group(1);
         }
@@ -497,7 +466,7 @@ public class CiweimaoCrawler implements BaseCrawler {
         }
         String cleanUrl = url.replaceAll("^/+", "").replaceAll("/+$", "");
         String[] parts = cleanUrl.split("/");
-        return parts[parts.length - 1].replace(".html", "");
+        return parts[parts.length - 1];
     }
 
     private LocalDateTime parseDateTime(String timeStr) {
@@ -506,18 +475,6 @@ public class CiweimaoCrawler implements BaseCrawler {
         }
 
         timeStr = timeStr.trim();
-
-        try {
-            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-            return LocalDateTime.parse(timeStr, formatter);
-        } catch (Exception ignored) {
-        }
-
-        try {
-            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
-            return LocalDateTime.parse(timeStr, formatter);
-        } catch (Exception ignored) {
-        }
 
         try {
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy/M/d H:mm:ss");
@@ -529,6 +486,12 @@ public class CiweimaoCrawler implements BaseCrawler {
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy/M/d");
             return LocalDateTime.parse(timeStr + " 00:00:00", 
                 DateTimeFormatter.ofPattern("yyyy/M/d HH:mm:ss"));
+        } catch (Exception ignored) {
+        }
+
+        try {
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+            return LocalDateTime.parse(timeStr, formatter);
         } catch (Exception ignored) {
         }
 
@@ -553,29 +516,6 @@ public class CiweimaoCrawler implements BaseCrawler {
             return Integer.parseInt(str.replaceAll("[^0-9]", ""));
         } catch (Exception e) {
             return 0;
-        }
-    }
-
-    private Long parseWordCount(String wordCount) {
-        if (wordCount == null || wordCount.isEmpty()) {
-            return null;
-        }
-        
-        wordCount = wordCount.trim();
-        
-        if (wordCount.contains("万")) {
-            String numStr = wordCount.replaceAll("[^0-9.]", "");
-            try {
-                return (long) (Double.parseDouble(numStr) * 10000);
-            } catch (Exception e) {
-                return null;
-            }
-        }
-        
-        try {
-            return Long.parseLong(wordCount.replaceAll("[^0-9]", ""));
-        } catch (Exception e) {
-            return null;
         }
     }
 }

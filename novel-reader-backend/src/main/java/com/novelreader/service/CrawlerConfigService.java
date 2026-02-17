@@ -37,20 +37,14 @@ public class CrawlerConfigService {
      * 根据平台名称获取配置
      */
     public CrawlerConfig findByPlatform(String platform) {
-        return crawlerConfigRepository.findById(platform).orElse(null);
+        return crawlerConfigRepository.findByPlatform(platform);
     }
 
-    /**
-     * 保存配置
-     */
     public CrawlerConfig save(CrawlerConfig config) {
         return crawlerConfigRepository.save(config);
     }
 
-    /**
-     * 删除配置
-     */
-    public void delete(String platform) {
-        crawlerConfigRepository.deleteById(platform);
+    public void delete(Long id) {
+        crawlerConfigRepository.deleteById(id);
     }
 }

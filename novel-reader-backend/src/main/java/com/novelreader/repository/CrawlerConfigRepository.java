@@ -10,10 +10,9 @@ import java.util.List;
  * 爬虫配置Repository
  */
 @Repository
-public interface CrawlerConfigRepository extends JpaRepository<CrawlerConfig, String> {
+public interface CrawlerConfigRepository extends JpaRepository<CrawlerConfig, Long> {
 
-    /**
-     * 查找所有启用的配置
-     */
     List<CrawlerConfig> findByEnabled(Integer enabled);
+
+    CrawlerConfig findByPlatform(String platform);
 }

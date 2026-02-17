@@ -2,6 +2,7 @@ package com.novelreader.entity;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -12,60 +13,54 @@ import java.time.LocalDateTime;
  */
 @Data
 @Entity
-@Table(name = "t_crawler_config")
+@Table(name = "t_crawler_config", uniqueConstraints = {
+    @UniqueConstraint(name = "uk_platform", columnNames = {"platform"})
+})
 public class CrawlerConfig {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    /**
-     * 平台名称：ciweimao/sf/ciyuanji/qidian
-     */
-    @Id
     @Column(nullable = false, length = 50)
     private String platform;
 
-    /**
-     * 平台基础URL
-     */
-    @Column(nullable = false)
+    @Column(length = 500)
     private String baseUrl;
 
-    /**
-     * 是否启用：0-禁用, 1-启用
-     */
-    @Column(defaultValue = "1")
+    @ColumnDefault("1")
     private Integer enabled = 1;
 
-    /**
-     * 标签列表（JSON数组）
-     */
     @Column(columnDefinition = "TEXT")
     private String tags;
 
-    /**
-     * 抓取间隔（小时）
-     */
-    @Column(defaultValue = "2")
-    private Integer intervalHours = 2;
+    @ColumnDefault("7200")
+    private Integer crawlInterval = 7200;
 
-    /**
-     * 最大重试次数
-     */
-    @Column(defaultValue = "3")
+    @ColumnDefault("3")
     private Integer maxRetry = 3;
 
-    /**
-     * 创建时间
-     */
+    private LocalDateTime lastCrawlTime;
+
+    private LocalDateTime lastSuccessCrawlTime;
+
+    @ColumnDefault("0")
+    private Integer isRunning = 0;
+
+    private String runningTaskId;
+
+    @ColumnDefault("0")
+    private Integer crawlCount = 0;
+
+    @ColumnDefault("0")
+    private Integer failCount = 0;
+
+    private String lastErrorMessage;
+
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    /**
-     * 更新时间
-     */
     @UpdateTimestamp
     @Column(nullable = false)
     private LocalDateTime updatedAt;

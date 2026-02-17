@@ -1,5 +1,7 @@
 package com.novelreader.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.novelreader.crawler.BaseCrawler;
 import com.novelreader.crawler.model.CrawlResult;
 import com.novelreader.crawler.model.Chapter;
@@ -10,13 +12,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
-/**
- * 爬虫调度器
- * 负责定时执行爬虫任务
- */
 @Slf4j
 @Service
 public class CrawlerScheduler {
@@ -28,143 +28,174 @@ public class CrawlerScheduler {
     private CrawlerConfigService crawlerConfigService;
 
     @Autowired
+    private CrawlerTaskManager crawlerTaskManager;
+
+    @Autowired
     private NovelService novelService;
 
     @Autowired
     private AiSummaryService aiSummaryService;
 
-    /**
-     * 定时任务：每2小时执行一次
-     * cron: 0 0 */2 * * ? （每2小时的0分0秒执行）
-     */
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
     @Scheduled(cron = "0 0 */2 * * ?")
     public void scheduleCrawlerTask() {
         log.info("========================================");
         log.info("🦞 开始执行定时爬虫任务");
-        log.info("📅 时间: {}", java.time.LocalDateTime.now());
+        log.info("📅 时间: {}", LocalDateTime.now());
         log.info("========================================");
 
         try {
-            // 获取所有启用的平台配置
             List<CrawlerConfig> configs = crawlerConfigService.findAllEnabled();
-
             log.info("找到 {} 个启用的爬虫配置", configs.size());
 
-            // 分发任务到各平台爬虫
             for (CrawlerConfig config : configs) {
-                dispatchCrawlerTask(config);
+                dispatchCrawlerTaskAsync(config);
             }
 
             log.info("========================================");
-            log.info("🦞 定时爬虫任务完成");
+            log.info("🦞 定时爬虫任务已分发");
             log.info("========================================");
         } catch (Exception e) {
             log.error("定时爬虫任务执行失败: {}", e.getMessage(), e);
         }
     }
 
-    /**
-     * 分发爬虫任务
-     */
+    public void dispatchCrawlerTaskAsync(CrawlerConfig config) {
+        String platform = config.getPlatform();
+        
+        if (crawlerTaskManager.isRunning(platform)) {
+            log.info("平台 {} 已有任务在运行，跳过本次调度", platform);
+            return;
+        }
+
+        CompletableFuture.runAsync(() -> dispatchCrawlerTask(config));
+    }
+
     public void dispatchCrawlerTask(CrawlerConfig config) {
         String platform = config.getPlatform();
         log.info("开始处理平台: {}", platform);
 
+        if (!crawlerTaskManager.tryAcquireLock(platform)) {
+            log.info("平台 {} 获取锁失败，跳过", platform);
+            return;
+        }
+
+        String errorMessage = null;
+        boolean success = false;
+
         try {
-            // 查找对应平台的爬虫
             BaseCrawler crawler = findCrawler(platform);
             if (crawler == null) {
-                log.error("未找到平台 {} 的爬虫实现", platform);
+                errorMessage = "未找到平台 " + platform + " 的爬虫实现";
+                log.error(errorMessage);
                 return;
             }
 
-            // 解析标签列表
             List<String> tags = parseTags(config.getTags());
             if (tags.isEmpty()) {
-                log.warn("平台 {} 没有配置标签", platform);
+                errorMessage = "平台 " + platform + " 没有配置标签";
+                log.warn(errorMessage);
                 return;
             }
 
             log.info("平台 {} 标签: {}", platform, tags);
 
-            // 执行爬虫任务
-            CrawlResult<List<Novel>> result = crawler.crawlNovelList(tags);
+            LocalDateTime sinceTime = crawlerTaskManager.getLastSuccessCrawlTime(platform);
+            if (sinceTime != null) {
+                log.info("平台 {} 增量爬取，起始时间: {}", platform, sinceTime);
+            } else {
+                log.info("平台 {} 首次全量爬取", platform);
+            }
+
+            CrawlResult<List<Novel>> result = crawler.crawlNovelList(tags, sinceTime);
 
             if (result.isSuccess()) {
                 List<Novel> novels = result.getData();
                 log.info("平台 {} 抓取到 {} 本小说", platform, novels.size());
 
-                // 处理每本小说
+                int newCount = 0;
+                int updateCount = 0;
+
                 for (Novel novel : novels) {
-                    processNovel(novel, crawler);
+                    ProcessResult processResult = processNovel(novel, crawler, sinceTime);
+                    if (processResult == ProcessResult.NEW) {
+                        newCount++;
+                    } else if (processResult == ProcessResult.UPDATED) {
+                        updateCount++;
+                    }
                 }
+
+                log.info("平台 {} 处理完成: 新增 {} 本, 更新 {} 本", platform, newCount, updateCount);
+                success = true;
             } else {
-                log.error("平台 {} 抓取失败: {}", platform, result.getErrorMessage());
+                errorMessage = result.getErrorMessage();
+                log.error("平台 {} 抓取失败: {}", platform, errorMessage);
             }
 
         } catch (Exception e) {
+            errorMessage = e.getMessage();
             log.error("处理平台 {} 失败: {}", platform, e.getMessage(), e);
+        } finally {
+            crawlerTaskManager.releaseLock(platform, success, errorMessage);
         }
     }
 
-    /**
-     * 处理单本小说
-     */
-    private void processNovel(Novel novel, BaseCrawler crawler) {
+    private enum ProcessResult {
+        NEW, UPDATED, SKIPPED
+    }
+
+    private ProcessResult processNovel(Novel novel, BaseCrawler crawler, LocalDateTime sinceTime) {
         try {
-            // 检查小说是否已存在
             Novel existing = novelService.findByPlatformAndNovelId(
                 novel.getPlatform(),
                 novel.getNovelId()
             );
 
             if (existing == null) {
-                // 首次抓取
                 log.info("首次抓取小说: {} (ID: {})", novel.getTitle(), novel.getNovelId());
                 handleFirstCrawl(novel, crawler);
+                return ProcessResult.NEW;
             } else {
-                // 增量更新
+                if (sinceTime != null && novel.getLatestUpdateTime() != null) {
+                    if (!novel.getLatestUpdateTime().isAfter(sinceTime)) {
+                        log.debug("小说 {} 无更新，跳过", existing.getTitle());
+                        return ProcessResult.SKIPPED;
+                    }
+                }
                 log.debug("更新小说: {} (ID: {})", novel.getTitle(), novel.getNovelId());
                 handleUpdate(existing, novel);
+                return ProcessResult.UPDATED;
             }
 
         } catch (Exception e) {
             log.error("处理小说 {} 失败: {}", novel.getTitle(), e.getMessage());
+            return ProcessResult.SKIPPED;
         }
     }
 
-    /**
-     * 首次抓取处理
-     */
     private void handleFirstCrawl(Novel novel, BaseCrawler crawler) {
         try {
-            // 抓取前3章
-            List<Chapter> chapters = crawler.fetchChapters(novel.getNovelId(), 3);
+            // List<Chapter> chapters = crawler.fetchChapters(novel.getNovelId(), 3);
 
-            if (chapters.isEmpty()) {
-                log.warn("小说 {} 没有章节", novel.getTitle());
-            } else {
-                // 合并前3章内容
-                StringBuilder combinedContent = new StringBuilder();
-                for (int i = 0; i < chapters.size(); i++) {
-                    Chapter chapter = chapters.get(i);
-                    combinedContent.append("第").append(i + 1).append("章 ")
-                              .append(chapter.getTitle()).append("\n")
-                              .append(chapter.getContent()).append("\n\n");
-                }
+            // if (!chapters.isEmpty()) {
+            //     StringBuilder combinedContent = new StringBuilder();
+            //     for (int i = 0; i < chapters.size(); i++) {
+            //         Chapter chapter = chapters.get(i);
+            //         combinedContent.append("第").append(i + 1).append("章 ")
+            //                   .append(chapter.getTitle()).append("\n")
+            //                   .append(chapter.getContent()).append("\n\n");
+            //     }
+            //     // TODO 首次抓取时，生成小说的概括，AI后续开发
+            //     // String summary = aiSummaryService.summarize(combinedContent.toString());
+            //     // novel.setFirstChaptersSummary(summary);
 
-                // AI生成前3章的综合概括
-                String summary = aiSummaryService.summarize(combinedContent.toString());
-                novel.setFirstChaptersSummary(summary);
+            //     log.info("小说 {} AI概括已生成", novel.getTitle());
+            // }
 
-                log.info("小说 {} AI概括已生成", novel.getTitle());
-            }
-
-            // 设置初始信息
-            novel.setLastCrawlTime(java.time.LocalDateTime.now());
+            novel.setLastCrawlTime(LocalDateTime.now());
             novel.setCrawlCount(1);
 
-            // 保存小说
             novelService.save(novel);
 
             log.info("小说 {} 首次抓取完成", novel.getTitle());
@@ -174,21 +205,16 @@ public class CrawlerScheduler {
         }
     }
 
-    /**
-     * 增量更新处理
-     */
     private void handleUpdate(Novel existing, Novel novel) {
         try {
             boolean needUpdate = false;
 
-            // 检查更新时间
             if (novel.getLatestUpdateTime() != null &&
                 !novel.getLatestUpdateTime().equals(existing.getLatestUpdateTime())) {
                 log.info("小说 {} 有更新", existing.getTitle());
                 needUpdate = true;
             }
 
-            // 更新基本信息
             if (needUpdate) {
                 existing.setTitle(novel.getTitle());
                 existing.setAuthor(novel.getAuthor());
@@ -196,10 +222,9 @@ public class CrawlerScheduler {
                 existing.setCoverUrl(novel.getCoverUrl());
                 existing.setLatestChapterTitle(novel.getLatestChapterTitle());
                 existing.setLatestUpdateTime(novel.getLatestUpdateTime());
-                existing.setLastCrawlTime(java.time.LocalDateTime.now());
+                existing.setLastCrawlTime(LocalDateTime.now());
                 existing.setCrawlCount(existing.getCrawlCount() + 1);
 
-                // 保存更新
                 novelService.save(existing);
 
                 log.info("小说 {} 更新完成 (第{}次抓取)",
@@ -211,9 +236,6 @@ public class CrawlerScheduler {
         }
     }
 
-    /**
-     * 查找对应平台的爬虫
-     */
     private BaseCrawler findCrawler(String platform) {
         return crawlers.stream()
                 .filter(c -> platform.equals(c.getPlatformName()))
@@ -221,19 +243,13 @@ public class CrawlerScheduler {
                 .orElse(null);
     }
 
-    /**
-     * 解析标签列表（JSON格式）
-     */
-    @SuppressWarnings("unchecked")
     private List<String> parseTags(String tagsJson) {
         if (tagsJson == null || tagsJson.trim().isEmpty()) {
             return new ArrayList<>();
         }
 
         try {
-            // 这里需要JSON解析库
-            // 暂时返回空列表
-            return new ArrayList<>();
+            return objectMapper.readValue(tagsJson, new TypeReference<List<String>>() {});
         } catch (Exception e) {
             log.error("解析标签列表失败: {}", e.getMessage());
             return new ArrayList<>();

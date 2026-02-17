@@ -49,7 +49,7 @@ public class DataInitializer implements CommandLineRunner {
             ciweimaoConfig.setBaseUrl("https://mip.ciweimao.com/");
             ciweimaoConfig.setEnabled(1);
             ciweimaoConfig.setTags("[\"玄幻\", \"修仙\", \"都市\", \"系统\"]");
-            ciweimaoConfig.setIntervalHours(2);
+            ciweimaoConfig.setCrawlInterval(7200);
             ciweimaoConfig.setMaxRetry(3);
             crawlerConfigService.save(ciweimaoConfig);
             log.info("创建刺猬猫爬虫配置");
@@ -65,7 +65,7 @@ public class DataInitializer implements CommandLineRunner {
             sfConfig.setBaseUrl("https://book.sfacg.com/");
             sfConfig.setEnabled(1);
             sfConfig.setTags("[\"玄幻\", \"轻小说\", \"二次元\"]");
-            sfConfig.setIntervalHours(2);
+            sfConfig.setCrawlInterval(7200);
             sfConfig.setMaxRetry(3);
             crawlerConfigService.save(sfConfig);
             log.info("创建SF轻小说爬虫配置");
@@ -81,28 +81,12 @@ public class DataInitializer implements CommandLineRunner {
             ciyuanjiConfig.setBaseUrl("https://www.ciyuanji.com/");
             ciyuanjiConfig.setEnabled(1);
             ciyuanjiConfig.setTags("[\"玄幻\", \"仙侠\", \"都市\"]");
-            ciyuanjiConfig.setIntervalHours(2);
+            ciyuanjiConfig.setCrawlInterval(7200);
             ciyuanjiConfig.setMaxRetry(3);
             crawlerConfigService.save(ciyuanjiConfig);
             log.info("创建次元姬爬虫配置");
         } else {
             log.info("次元姬爬虫配置已存在");
-        }
-
-        // 检查起点配置
-        CrawlerConfig qidianConfig = crawlerConfigService.findByPlatform("qidian");
-        if (qidianConfig == null) {
-            qidianConfig = new CrawlerConfig();
-            qidianConfig.setPlatform("qidian");
-            qidianConfig.setBaseUrl("https://www.qidian.com/");
-            qidianConfig.setEnabled(1);
-            qidianConfig.setTags("[\"玄幻\", \"仙侠\", \"都市\", \"科幻\"]");
-            qidianConfig.setIntervalHours(2);
-            qidianConfig.setMaxRetry(3);
-            crawlerConfigService.save(qidianConfig);
-            log.info("创建起点爬虫配置");
-        } else {
-            log.info("起点爬虫配置已存在");
         }
 
         log.info("爬虫配置初始化完成");

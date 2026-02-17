@@ -2,6 +2,7 @@ package com.novelreader.entity;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -18,6 +19,8 @@ import java.time.LocalDateTime;
     @Index(name = "idx_author", columnList = "author"),
     @Index(name = "idx_update_time", columnList = "latestUpdateTime"),
     @Index(name = "idx_status", columnList = "status")
+}, uniqueConstraints = {
+    @UniqueConstraint(name = "uk_platform_novel", columnNames = {"platform", "novelId"})
 })
 public class Novel {
 
@@ -68,6 +71,17 @@ public class Novel {
     private String latestChapterTitle;
 
     /**
+     * 标签（JSON数组格式）
+     */
+    @Column(length = 500)
+    private String tags;
+
+    /**
+     * 总字数
+     */
+    private Long wordCount;
+
+    /**
      * 最新更新时间
      */
     private LocalDateTime latestUpdateTime;
@@ -86,19 +100,19 @@ public class Novel {
     /**
      * 抓取次数
      */
-    @Column(defaultValue = "0")
+    @ColumnDefault("0")
     private Integer crawlCount = 0;
 
     /**
      * 状态：0-停更, 1-连载, 2-完结
      */
-    @Column(defaultValue = "1")
+    @ColumnDefault("1")
     private Integer status = 1;
 
     /**
      * 是否删除：0-否, 1-是
      */
-    @Column(defaultValue = "0")
+    @ColumnDefault("0")
     private Integer deleted = 0;
 
     /**
@@ -115,9 +129,6 @@ public class Novel {
     @Column(nullable = false)
     private LocalDateTime updatedAt;
 
-    /**
-     * 联合唯一约束：platform + novelId
-     */
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
