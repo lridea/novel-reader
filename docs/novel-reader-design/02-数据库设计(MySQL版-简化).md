@@ -66,7 +66,7 @@ CREATE TABLE t_novel (
     cover_url VARCHAR(500) COMMENT '封面URL',
     latest_chapter_title VARCHAR(200) COMMENT '最新章节标题',
     latest_update_time DATETIME COMMENT '最新更新时间',
-    first_chapters_summary JSON COMMENT '前3章AI概括（JSON数组）',
+    first_chapters_summary TEXT COMMENT '前3章综合概括',
     last_crawl_time DATETIME COMMENT '最后抓取时间',
     crawl_count INT DEFAULT 0 COMMENT '抓取次数',
     status TINYINT DEFAULT 1 COMMENT '状态：0-停更, 1-连载, 2-完结',
@@ -85,29 +85,16 @@ CREATE TABLE t_novel (
 ```
 
 **说明**：
-- `first_chapters_summary`：存储前3章的AI概括（JSON数组格式）
-- JSON格式示例：
-  ```json
-  [
-    {
-      "chapter": 1,
-      "title": "第一章 修炼开始",
-      "summary": "主角开始修炼，遇到了..."
-    },
-    {
-      "chapter": 2,
-      "title": "第二章 突破",
-      "summary": "主角突破到练气期..."
-    },
-    {
-      "chapter": 3,
-      "title": "第三章 出山",
-      "summary": "主角出山历练..."
-    }
-  ]
+- `first_chapters_summary`：存储前3章的综合概括（一个整体的总结）
+- 示例内容：
   ```
-- 只在首次抓取时生成AI概括，增量更新时不再重新生成
-- 不存储章节具体内容，只存储AI概括
+  主角从零开始修炼，在第一章中遇到了神秘老人，获得了修炼功法。
+  第二章主角突破到练气期，展现出惊人的天赋。
+  第三章主角决定出山历练，踏上了修仙之路。前三章主要讲述了主角的修炼开始和早期成长。
+  ```
+- 只在首次抓取时生成AI概括（将前3章内容综合后生成一个概括）
+- 增量更新时不再重新生成
+- 不存储章节具体内容，只存储综合概括
 
 ---
 
