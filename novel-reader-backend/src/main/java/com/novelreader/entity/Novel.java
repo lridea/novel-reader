@@ -20,6 +20,7 @@ import java.time.LocalDateTime;
     @Index(name = "idx_update_time", columnList = "latestUpdateTime"),
     @Index(name = "idx_status", columnList = "status"),
     @Index(name = "idx_favorite_count", columnList = "favoriteCount"),
+    @Index(name = "idx_comment_count", columnList = "commentCount"),
     @Index(name = "idx_status_favorite_count", columnList = "status, favoriteCount DESC"),
     @Index(name = "idx_favorite_count_update_time", columnList = "favoriteCount DESC, latestUpdateTime DESC")
 }, uniqueConstraints = {
@@ -89,6 +90,12 @@ public class Novel {
      */
     @ColumnDefault("0")
     private Integer favoriteCount = 0;
+
+    /**
+     * 评论数
+     */
+    @ColumnDefault("0")
+    private Integer commentCount = 0;
 
     /**
      * 最新更新时间
