@@ -98,6 +98,14 @@
               <div class="comment-text">{{ comment.content }}</div>
               <div class="comment-actions">
                 <el-button
+                  :type="comment.liked ? 'primary' : 'default'"
+                  size="small"
+                  @click="toggleLike(comment)"
+                >
+                  <el-icon><StarFilled /></el-icon>
+                  {{ comment.likeCount }}
+                </el-button>
+                <el-button
                   type="default"
                   size="small"
                   @click="showReplyDialog(comment)"
@@ -121,6 +129,14 @@
                 </div>
                 <div class="reply-text">{{ reply.content }}</div>
                 <div class="reply-actions">
+                  <el-button
+                    :type="reply.liked ? 'primary' : 'default'"
+                    size="small"
+                    @click="toggleLike(reply)"
+                  >
+                    <el-icon><StarFilled /></el-icon>
+                    {{ reply.likeCount }}
+                  </el-button>
                   <el-button
                     size="small"
                     @click="showReplyDialog(comment, reply)"
@@ -484,6 +500,37 @@ const formatTime = (time) => {
 
   // 超过7天，显示具体日期
   return date.toLocaleDateString('zh-CN')
+}
+
+// 点赞/取消点赞评论
+const toggleLike = async (comment) => {
+  try {
+    let response
+    if (comment.liked) {
+      // 取消点赞
+      response = await crawlerApi.unlikeComment(comment.id)
+      if (response && response.success) {
+        ElMessage.success('取消点赞成功')
+        comment.liked = false
+        comment.likeCount = response.commentLikeCount || 0
+      } else {
+        ElMessage.error(response.message || '取消点赞失败')
+      }
+    } else {
+      // 点赞
+      response = await crawlerApi.likeComment(comment.id)
+      if (response && response.success) {
+        ElMessage.success('点赞成功')
+        comment.liked = true
+        comment.likeCount = response.commentLikeCount || 0
+      } else {
+        ElMessage.error(response.message || '点赞失败')
+      }
+    }
+  } catch (error) {
+    console.error('点赞失败:', error)
+    ElMessage.error('操作失败')
+  }
 }
 
 onMounted(() => {
