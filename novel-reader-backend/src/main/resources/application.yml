@@ -74,3 +74,8 @@ ai:
     model: glm-4
     timeout: 60000
     max-tokens: 200
+
+# JWT配置
+jwt:
+  secret: ${JWT_SECRET:novel-reader-secret-key-must-be-at-least-256-bits-long-for-hs256-algorithm-please-change-this-in-production}
+  expiration: 604800000  # 7天（毫秒）

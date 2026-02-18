@@ -67,6 +67,66 @@ export const crawlerApi = {
 
   getTask(id) {
     return USE_MOCK ? mockApi.getTask(id) : api.get(`/crawler/tasks/${id}`)
+  },
+
+  // 认证相关API
+  register(data) {
+    return USE_MOCK ? mockApi.register(data) : api.post('/auth/register', data)
+  },
+
+  login(data) {
+    return USE_MOCK ? mockApi.login(data) : api.post('/auth/login', data)
+  },
+
+  getCurrentUser() {
+    return USE_MOCK ? mockApi.getCurrentUser() : api.get('/auth/me')
+  },
+
+  logout() {
+    return USE_MOCK ? mockApi.logout() : api.post('/auth/logout')
+  },
+
+  // 用户相关API
+  updateUserProfile(data) {
+    return USE_MOCK ? mockApi.updateUserProfile(data) : api.put('/users/profile', data)
+  },
+
+  changePassword(data) {
+    return USE_MOCK ? mockApi.changePassword(data) : api.put('/users/password', data)
+  },
+
+  // 收藏相关API
+  addFavorite(data) {
+    return USE_MOCK ? mockApi.addFavorite(data) : api.post('/favorites', data)
+  },
+
+  removeFavorite(novelId) {
+    return USE_MOCK ? mockApi.removeFavorite(novelId) : api.delete(`/favorites/${novelId}`)
+  },
+
+  getFavorites(params) {
+    return USE_MOCK ? mockApi.getFavorites(params) : api.get('/favorites', { params })
+  },
+
+  updateFavoriteNote(novelId, note) {
+    return USE_MOCK ? mockApi.updateFavoriteNote(novelId, note) : api.put(`/favorites/${novelId}/note`, { note })
+  },
+
+  // 分类相关API
+  createCategory(data) {
+    return USE_MOCK ? mockApi.createCategory(data) : api.post('/categories', data)
+  },
+
+  getCategories() {
+    return USE_MOCK ? mockApi.getCategories() : api.get('/categories')
+  },
+
+  updateCategory(id, data) {
+    return USE_MOCK ? mockApi.updateCategory(id, data) : api.put(`/categories/${id}`, data)
+  },
+
+  deleteCategory(id) {
+    return USE_MOCK ? mockApi.deleteCategory(id) : api.delete(`/categories/${id}`)
   }
 }
 
