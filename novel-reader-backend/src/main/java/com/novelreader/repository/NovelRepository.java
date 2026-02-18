@@ -52,4 +52,53 @@ public interface NovelRepository extends JpaRepository<Novel, Long> {
      */
     @Query("SELECT n FROM Novel n WHERE n.platform = :platform AND n.deleted = 0 AND (n.title LIKE %:keyword% OR n.author LIKE %:keyword%)")
     Page<Novel> searchByPlatformAndKeyword(@Param("platform") String platform, @Param("keyword") String keyword, Pageable pageable);
+
+    /**
+     * 复杂查询（支持多条件组合）
+     * 支持平台、关键词、状态、标签、字数范围、排序
+     */
+    @Query("SELECT n FROM Novel n WHERE n.deleted = 0 " +
+           "AND (:platform IS NULL OR n.platform = :platform) " +
+           "AND (:keyword IS NULL OR n.title LIKE %:keyword% OR n.author LIKE %:keyword%) " +
+           "AND (:status IS NULL OR n.status = :status) " +
+           "AND (:tag IS NULL OR n.tags LIKE %:tag%) " +
+           "AND (:wordCountMin IS NULL OR n.wordCount >= :wordCountMin) " +
+           "AND (:wordCountMax IS NULL OR n.wordCount <= :wordCountMax)")
+    Page<Novel> searchNovels(
+            @Param("platform") String platform,
+            @Param("keyword") String keyword,
+            @Param("status") Integer status,
+            @Param("tag") String tag,
+            @Param("wordCountMin") Long wordCountMin,
+            @Param("wordCountMax") Long wordCountMax,
+            Pageable pageable);
+
+    /**
+     * 获取所有标签（按数量降序，原生SQL）
+     */
+    @Query(value = "SELECT JSON_UNQUOTE(JSON_EXTRACT(tags, CONCAT('$[', seq.seq, ']'))) as tag_name, " +
+                   "COUNT(*) as tag_count " +
+                   "FROM t_novel, " +
+                   "(SELECT 0 AS seq UNION SELECT 1 UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 UNION SELECT 5 UNION SELECT 6 UNION SELECT 7 UNION SELECT 8 UNION SELECT 9) seq " +
+                   "WHERE JSON_LENGTH(tags) > seq.seq " +
+                   "AND deleted = 0 " +
+                   "GROUP BY tag_name " +
+                   "ORDER BY tag_count DESC " +
+                   "LIMIT 100", nativeQuery = true)
+    List<Map<String, Object>> getAllTags();
+
+    /**
+     * 根据平台获取标签（按数量降序，原生SQL）
+     */
+    @Query(value = "SELECT JSON_UNQUOTE(JSON_EXTRACT(tags, CONCAT('$[', seq.seq, ']'))) as tag_name, " +
+                   "COUNT(*) as tag_count " +
+                   "FROM t_novel, " +
+                   "(SELECT 0 AS seq UNION SELECT 1 UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 UNION SELECT 5 UNION SELECT 6 UNION SELECT 7 UNION SELECT 8 UNION SELECT 9) seq " +
+                   "WHERE platform = :platform " +
+                   "AND JSON_LENGTH(tags) > seq.seq " +
+                   "AND deleted = 0 " +
+                   "GROUP BY tag_name " +
+                   "ORDER BY tag_count DESC " +
+                   "LIMIT 100", nativeQuery = true)
+    List<Map<String, Object>> getTagsByPlatform(@Param("platform") String platform);
 }

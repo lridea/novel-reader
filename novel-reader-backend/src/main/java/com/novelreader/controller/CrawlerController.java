@@ -202,28 +202,42 @@ public class CrawlerController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String platform,
-            @RequestParam(required = false) String keyword) {
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Integer status,
+            @RequestParam(required = false) String tag,
+            @RequestParam(required = false) String wordCountMin,
+            @RequestParam(required = false) String wordCountMax,
+            @RequestParam(defaultValue = "updateTime") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortOrder) {
 
-        log.info("分页查询小说: page={}, size={}, platform={}, keyword={}", page, size, platform, keyword);
+        log.info("分页查询小说: page={}, size={}, platform={}, keyword={}, status={}, tag={}, wordCountMin={}, wordCountMax={}, sortBy={}, sortOrder={}",
+                page, size, platform, keyword, status, tag, wordCountMin, wordCountMax, sortBy, sortOrder);
 
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "latestUpdateTime"));
+        // 处理字数范围参数（10w, 30w, 50w, 100w, 200w）
+        Long minWordCount = parseWordCount(wordCountMin);
+        Long maxWordCount = parseWordCount(wordCountMax);
+
+        // 处理排序
+        Sort sort;
+        if ("wordCount".equalsIgnoreCase(sortBy)) {
+            sort = Sort.by("asc".equalsIgnoreCase(sortOrder) ? Sort.Direction.ASC : Sort.Direction.DESC, "wordCount");
+        } else {
+            sort = Sort.by("asc".equalsIgnoreCase(sortOrder) ? Sort.Direction.ASC : Sort.Direction.DESC, "latestUpdateTime");
+        }
+
+        Pageable pageable = PageRequest.of(page, size, sort);
         Page<Novel> novelPage;
 
-        if (platform != null && !platform.isEmpty()) {
-            if (keyword != null && !keyword.isEmpty()) {
-                // 平台 + 关键词
-                novelPage = novelRepository.searchByPlatformAndKeyword(platform, keyword, pageable);
-            } else {
-                // 仅平台
-                novelPage = novelRepository.findByPlatformAndDeletedOrderByLatestUpdateTimeDesc(platform, 0, pageable);
-            }
-        } else if (keyword != null && !keyword.isEmpty()) {
-            // 仅关键词
-            novelPage = novelRepository.searchByKeyword(keyword, pageable);
-        } else {
-            // 全部
-            novelPage = novelRepository.findByDeletedOrderByLatestUpdateTimeDesc(0, pageable);
-        }
+        // 使用复杂查询方法
+        novelPage = novelRepository.searchNovels(
+                platform,
+                keyword,
+                status,
+                tag,
+                minWordCount,
+                maxWordCount,
+                pageable
+        );
 
         Map<String, Object> result = new HashMap<>();
         result.put("content", novelPage.getContent());
@@ -233,6 +247,39 @@ public class CrawlerController {
         result.put("number", novelPage.getNumber());
 
         return ResponseEntity.ok(result);
+    }
+
+    /**
+     * 解析字数范围参数
+     *
+     * @param wordCountStr 字数字符串（全部/10w/30w/50w/100w/200w）
+     * @return 字数（Long）
+     */
+    private Long parseWordCount(String wordCountStr) {
+        if (wordCountStr == null || wordCountStr.isEmpty() || "全部".equals(wordCountStr)) {
+            return null;
+        }
+
+        try {
+            String lower = wordCountStr.toLowerCase();
+            if (lower.equals("10w") || lower.equals("100000")) {
+                return 100000L;
+            } else if (lower.equals("30w") || lower.equals("300000")) {
+                return 300000L;
+            } else if (lower.equals("50w") || lower.equals("500000")) {
+                return 500000L;
+            } else if (lower.equals("100w") || lower.equals("1000000")) {
+                return 1000000L;
+            } else if (lower.equals("200w") || lower.equals("2000000")) {
+                return 2000000L;
+            } else {
+                // 尝试直接解析数字
+                return Long.parseLong(wordCountStr);
+            }
+        } catch (NumberFormatException e) {
+            log.warn("解析字数参数失败: {}", wordCountStr);
+            return null;
+        }
     }
 
     /**
