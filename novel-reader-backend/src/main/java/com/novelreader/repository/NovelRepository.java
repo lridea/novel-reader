@@ -123,4 +123,20 @@ public interface NovelRepository extends JpaRepository<Novel, Long> {
     @Query("UPDATE Novel n SET n.favoriteCount = n.favoriteCount - 1 WHERE n.id = :novelId AND n.favoriteCount > 0")
     @Transactional
     void decrementFavoriteCount(@Param("novelId") Long novelId);
+
+    /**
+     * 原子操作：评论数+1
+     */
+    @Modifying
+    @Query("UPDATE Novel n SET n.commentCount = n.commentCount + 1 WHERE n.id = :novelId")
+    @Transactional
+    void incrementCommentCount(@Param("novelId") Long novelId);
+
+    /**
+     * 原子操作：评论数-1
+     */
+    @Modifying
+    @Query("UPDATE Novel n SET n.commentCount = n.commentCount - 1 WHERE n.id = :novelId AND n.commentCount > 0")
+    @Transactional
+    void decrementCommentCount(@Param("novelId") Long novelId);
 }
