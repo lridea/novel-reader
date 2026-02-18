@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
+import router from '../router'
 import mockApi from '../mock'
 
 // 使用Mock数据开关（开发时设为true，生产时设为false）
@@ -10,9 +11,39 @@ const api = axios.create({
   timeout: 30000
 })
 
+// 请求拦截器：添加Token
+api.interceptors.request.use(
+  config => {
+    const token = localStorage.getItem('token')
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`
+    }
+    return config
+  },
+  error => {
+    return Promise.reject(error)
+  }
+)
+
+// 响应拦截器：处理错误
 api.interceptors.response.use(
   response => response.data,
   error => {
+    // 处理401错误（未登录）
+    if (error.response && error.response.status === 401) {
+      ElMessage.error('请先登录')
+      // 跳转到登录页面
+      router.push('/login')
+      return Promise.reject(error)
+    }
+
+    // 处理403错误（权限不足）
+    if (error.response && error.response.status === 403) {
+      ElMessage.error('权限不足，仅管理员可访问')
+      return Promise.reject(error)
+    }
+
+    // 处理其他错误
     const message = error.response?.data?.message || error.message || '请求失败'
     ElMessage.error(message)
     return Promise.reject(error)

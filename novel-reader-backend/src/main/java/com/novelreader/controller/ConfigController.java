@@ -5,13 +5,14 @@ import com.novelreader.repository.CrawlerConfigRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
 import java.util.Map;
 
 /**
- * 爬虫配置控制器
+ * 爬虫配置控制器（仅管理员可访问）
  */
 @Slf4j
 @RestController
@@ -24,6 +25,7 @@ public class ConfigController {
     /**
      * 获取所有配置
      */
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping
     public ResponseEntity<Iterable<CrawlerConfig>> getAllConfigs() {
         log.info("获取所有爬虫配置");
@@ -33,6 +35,7 @@ public class ConfigController {
     /**
      * 根据ID获取配置
      */
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/{id}")
     public ResponseEntity<CrawlerConfig> getConfigById(@PathVariable Long id) {
         log.info("获取配置: id={}", id);
@@ -45,6 +48,7 @@ public class ConfigController {
     /**
      * 更新配置
      */
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<Map<String, Object>> updateConfig(@PathVariable Long id, @RequestBody Map<String, Object> updates) {
         log.info("更新配置: id={}, updates={}", id, updates);
@@ -83,6 +87,7 @@ public class ConfigController {
     /**
      * 根据平台获取配置
      */
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/platform/{platform}")
     public ResponseEntity<CrawlerConfig> getConfigByPlatform(@PathVariable String platform) {
         log.info("获取平台配置: platform={}", platform);

@@ -9,13 +9,14 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
 import java.util.Map;
 
 /**
- * 爬虫任务控制器
+ * 爬虫任务控制器（仅管理员可访问）
  */
 @Slf4j
 @RestController
@@ -28,6 +29,7 @@ public class TaskController {
     /**
      * 获取任务列表（分页）
      */
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping
     public ResponseEntity<Map<String, Object>> getTasks(
             @RequestParam(defaultValue = "0") int page,
@@ -61,6 +63,7 @@ public class TaskController {
     /**
      * 获取任务详情
      */
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/{id}")
     public ResponseEntity<CrawlerTask> getTask(@PathVariable Long id) {
         log.info("获取任务详情: id={}", id);
@@ -73,6 +76,7 @@ public class TaskController {
     /**
      * 创建任务
      */
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     public ResponseEntity<CrawlerTask> createTask(@RequestBody CrawlerTask task) {
         log.info("创建任务: platform={}, taskType={}", task.getPlatform(), task.getTaskType());
@@ -84,6 +88,7 @@ public class TaskController {
     /**
      * 更新任务
      */
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<CrawlerTask> updateTask(@PathVariable Long id, @RequestBody CrawlerTask task) {
         log.info("更新任务: id={}, status={}", id, task.getStatus());

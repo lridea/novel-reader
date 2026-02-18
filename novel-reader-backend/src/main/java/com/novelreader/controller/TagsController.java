@@ -4,6 +4,7 @@ import com.novelreader.repository.NovelRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -11,7 +12,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 标签Controller
+ * 标签Controller（仅管理员可访问）
  */
 @Slf4j
 @RestController
@@ -26,6 +27,7 @@ public class TagsController {
      *
      * @return 标签列表
      */
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping
     public ResponseEntity<Map<String, Object>> getAllTags() {
         log.info("获取所有标签");
@@ -53,6 +55,7 @@ public class TagsController {
      * @param platform 平台
      * @return 标签列表
      */
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/platform/{platform}")
     public ResponseEntity<Map<String, Object>> getTagsByPlatform(@PathVariable String platform) {
         log.info("获取平台 {} 的标签", platform);

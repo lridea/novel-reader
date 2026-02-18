@@ -18,6 +18,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -25,6 +26,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+/**
+ * 爬虫控制器（仅管理员可访问）
+ */
 @Slf4j
 @RestController
 @RequestMapping("/api/crawler")
@@ -52,6 +56,7 @@ public class CrawlerController {
     private List<BaseCrawler> crawlers;
 
     @PostMapping("/trigger")
+    @PreAuthorize("hasRole('ADMIN')")
     public Map<String, Object> triggerCrawler() {
         log.info("收到手动触发爬虫请求");
 
@@ -71,6 +76,7 @@ public class CrawlerController {
     }
 
     @PostMapping("/trigger/{platform}")
+    @PreAuthorize("hasRole('ADMIN')")
     public Map<String, Object> triggerCrawlerByPlatform(@PathVariable String platform) {
         log.info("收到手动触发平台 {} 爬虫请求", platform);
 
@@ -109,6 +115,7 @@ public class CrawlerController {
     }
 
     @GetMapping("/test/{platform}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Map<String, Object>> testCrawler(@PathVariable String platform,
                                                            @RequestParam(required = false) String tag) {
         log.info("测试平台 {} 爬虫, 标签: {}", platform, tag);
@@ -169,6 +176,7 @@ public class CrawlerController {
     }
 
     @GetMapping("/status/{platform}")
+    @PreAuthorize("hasRole('ADMIN')")
     public Map<String, Object> getCrawlerStatus(@PathVariable String platform) {
         Map<String, Object> result = new HashMap<>();
         
@@ -195,6 +203,7 @@ public class CrawlerController {
      * 获取所有小说（旧接口，兼容）
      */
     @GetMapping("/novels")
+    @PreAuthorize("hasRole('ADMIN')")
     public List<Novel> getAllNovels() {
         return novelService.findAll();
     }
@@ -203,6 +212,7 @@ public class CrawlerController {
      * 分页查询小说（新接口，支持筛选）
      */
     @GetMapping("/novels/page")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Map<String, Object>> getNovelsPage(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -320,6 +330,7 @@ public class CrawlerController {
      * 根据平台获取小说（旧接口，兼容）
      */
     @GetMapping("/novels/platform/{platform}")
+    @PreAuthorize("hasRole('ADMIN')")
     public List<Novel> getNovelsByPlatform(@PathVariable String platform) {
         return novelService.findByPlatform(platform);
     }
@@ -328,6 +339,7 @@ public class CrawlerController {
      * 获取所有爬虫配置
      */
     @GetMapping("/configs")
+    @PreAuthorize("hasRole('ADMIN')")
     public Object getAllConfigs() {
         return crawlerConfigService.findAll();
     }
@@ -336,6 +348,7 @@ public class CrawlerController {
      * 获取所有爬虫
      */
     @GetMapping("/crawlers")
+    @PreAuthorize("hasRole('ADMIN')")
     public Map<String, String> getAllCrawlers() {
         Map<String, String> result = new HashMap<>();
         for (BaseCrawler crawler : crawlers) {
@@ -348,6 +361,7 @@ public class CrawlerController {
      * 健康检查
      */
     @GetMapping("/health")
+    @PreAuthorize("hasRole('ADMIN')")
     public Map<String, Object> health() {
         Map<String, Object> result = new HashMap<>();
         result.put("status", "ok");
