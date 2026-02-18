@@ -4,10 +4,12 @@ import com.novelreader.entity.Novel;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import javax.transaction.Transactional;
 import java.util.List;
 
 /**
@@ -105,4 +107,20 @@ public interface NovelRepository extends JpaRepository<Novel, Long> {
                    "ORDER BY tag_count DESC " +
                    "LIMIT 100", nativeQuery = true)
     List<Map<String, Object>> getTagsByPlatform(@Param("platform") String platform);
+
+    /**
+     * 原子操作：收藏数+1
+     */
+    @Modifying
+    @Query("UPDATE Novel n SET n.favoriteCount = n.favoriteCount + 1 WHERE n.id = :novelId")
+    @Transactional
+    void incrementFavoriteCount(@Param("novelId") Long novelId);
+
+    /**
+     * 原子操作：收藏数-1
+     */
+    @Modifying
+    @Query("UPDATE Novel n SET n.favoriteCount = n.favoriteCount - 1 WHERE n.id = :novelId AND n.favoriteCount > 0")
+    @Transactional
+    void decrementFavoriteCount(@Param("novelId") Long novelId);
 }

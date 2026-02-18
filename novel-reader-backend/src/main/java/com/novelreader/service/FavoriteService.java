@@ -71,14 +71,16 @@ public class FavoriteService {
 
         Favorite savedFavorite = favoriteRepository.save(favorite);
 
-        // 更新小说的收藏数
-        novel.setFavoriteCount(novel.getFavoriteCount() + 1);
-        novelRepository.save(novel);
+        // 使用原子操作更新收藏数（解决并发问题）
+        novelRepository.incrementFavoriteCount(novelId);
+
+        // 重新获取最新的收藏数
+        Novel updatedNovel = novelRepository.findById(novelId).orElse(null);
 
         result.put("success", true);
         result.put("message", "收藏成功");
         result.put("favorite", toFavoriteInfo(savedFavorite));
-        result.put("novelFavoriteCount", novel.getFavoriteCount());
+        result.put("novelFavoriteCount", updatedNovel != null ? updatedNovel.getFavoriteCount() : 0);
 
         return result;
     }
@@ -99,22 +101,18 @@ public class FavoriteService {
             return result;
         }
 
-        // 更新小说的收藏数
-        Optional<Novel> novelOpt = novelRepository.findById(novelId);
-        if (novelOpt.isPresent()) {
-            Novel novel = novelOpt.get();
-            if (novel.getFavoriteCount() > 0) {
-                novel.setFavoriteCount(novel.getFavoriteCount() - 1);
-                novelRepository.save(novel);
-            }
-            result.put("novelFavoriteCount", novel.getFavoriteCount());
-        }
+        // 使用原子操作更新收藏数（解决并发问题）
+        novelRepository.decrementFavoriteCount(novelId);
 
         // 删除收藏
         favoriteRepository.deleteByUserIdAndNovelId(userId, novelId);
 
+        // 重新获取最新的收藏数
+        Novel updatedNovel = novelRepository.findById(novelId).orElse(null);
+
         result.put("success", true);
         result.put("message", "取消成功");
+        result.put("novelFavoriteCount", updatedNovel != null ? updatedNovel.getFavoriteCount() : 0);
 
         return result;
     }
