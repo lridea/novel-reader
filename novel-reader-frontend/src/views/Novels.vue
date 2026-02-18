@@ -192,6 +192,14 @@
             </span>
           </template>
         </el-table-column>
+        <el-table-column prop="commentCount" label="评论数" width="100">
+          <template #default="{ row }">
+            <span style="color: #409EFF; font-weight: 500;">
+              <el-icon><ChatDotRound /></el-icon>
+              {{ row.commentCount || 0 }}
+            </span>
+          </template>
+        </el-table-column>
         <el-table-column label="操作" width="120" fixed="right">
           <template #default="{ row }">
             <el-button
