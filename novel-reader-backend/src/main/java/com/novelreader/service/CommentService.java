@@ -3,6 +3,8 @@ package com.novelreader.service;
 import com.novelreader.entity.Comment;
 import com.novelreader.entity.CommentLike;
 import com.novelreader.entity.Novel;
+import com.novelreader.filter.FilterResult;
+import com.novelreader.filter.SensitiveWordFilter;
 import com.novelreader.repository.CommentLikeRepository;
 import com.novelreader.repository.CommentRepository;
 import com.novelreader.repository.NovelRepository;
@@ -37,6 +39,9 @@ public class CommentService {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private SensitiveWordFilter sensitiveWordFilter;
 
     /**
      * 获取评论列表（分页）
@@ -112,6 +117,15 @@ public class CommentService {
                 return result;
             }
             parentComment = parentOpt.get();
+        }
+
+        // 敏感词过滤
+        FilterResult filterResult = sensitiveWordFilter.filter(content);
+        if (filterResult.isSensitive()) {
+            log.info("评论包含敏感词: {}", filterResult.getSensitiveWords());
+            result.put("success", false);
+            result.put("message", "评论包含敏感词，无法发布");
+            return result;
         }
 
         // 创建评论
