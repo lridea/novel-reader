@@ -5,18 +5,11 @@
         <div class="card-header">
           <span>数据浏览</span>
           <div class="header-actions">
-            <el-select v-model="filterPlatform" placeholder="选择平台" clearable style="width: 150px;">
-              <el-option label="全部平台" value="" />
-              <el-option label="刺猬猫" value="ciweimao" />
-              <el-option label="SF轻小说" value="sf" />
-              <el-option label="次元姬" value="ciyuanji" />
-              <el-option label="起点" value="qidian" />
-            </el-select>
             <el-input 
               v-model="searchKeyword" 
               placeholder="搜索书名/作者" 
               clearable
-              style="width: 200px; margin-left: 10px;"
+              style="width: 200px;"
               @keyup.enter="loadData"
             >
               <template #append>
@@ -26,6 +19,117 @@
           </div>
         </div>
       </template>
+
+      <!-- 筛选条件区域 -->
+      <div class="filter-section">
+        <!-- 平台筛选 -->
+        <div class="filter-row">
+          <span class="filter-label">平台:</span>
+          <div class="filter-buttons">
+            <el-button
+              v-for="platform in platformOptions"
+              :key="platform.value"
+              :type="filterPlatform === platform.value ? 'primary' : ''"
+              :class="{ 'filter-button': true, 'active': filterPlatform === platform.value }"
+              @click="filterPlatform = platform.value; loadData()"
+              size="small"
+            >
+              {{ platform.label }}
+            </el-button>
+          </div>
+        </div>
+
+        <!-- 状态筛选 -->
+        <div class="filter-row">
+          <span class="filter-label">状态:</span>
+          <div class="filter-buttons">
+            <el-button
+              v-for="status in statusOptions"
+              :key="status.value"
+              :type="filterStatus === status.value ? 'primary' : ''"
+              :class="{ 'filter-button': true, 'active': filterStatus === status.value }"
+              @click="filterStatus = status.value; loadData()"
+              size="small"
+            >
+              {{ status.label }}
+            </el-button>
+          </div>
+        </div>
+
+        <!-- 字数筛选 -->
+        <div class="filter-row">
+          <span class="filter-label">字数:</span>
+          <div class="filter-buttons word-count-filters">
+            <div class="word-count-group">
+              <span class="word-count-label">最小:</span>
+              <el-button
+                v-for="wc in wordCountOptions"
+                :key="wc.value"
+                :type="wordCountMin === wc.value ? 'primary' : ''"
+                :class="{ 'filter-button': true, 'active': wordCountMin === wc.value }"
+                @click="wordCountMin = wc.value; loadData()"
+                size="small"
+              >
+                {{ wc.label }}
+              </el-button>
+            </div>
+            <div class="word-count-group">
+              <span class="word-count-label">最大:</span>
+              <el-button
+                v-for="wc in wordCountOptions"
+                :key="wc.value"
+                :type="wordCountMax === wc.value ? 'primary' : ''"
+                :class="{ 'filter-button': true, 'active': wordCountMax === wc.value }"
+                @click="wordCountMax = wc.value; loadData()"
+                size="small"
+              >
+                {{ wc.label }}
+              </el-button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 排序方式 -->
+        <div class="filter-row">
+          <span class="filter-label">排序:</span>
+          <div class="filter-buttons">
+            <el-button
+              v-for="sort in sortOptions"
+              :key="`${sort.sortBy}-${sort.sortOrder}`"
+              :type="sortBy === sort.sortBy && sortOrder === sort.sortOrder ? 'primary' : ''"
+              :class="{ 'filter-button': true, 'active': sortBy === sort.sortBy && sortOrder === sort.sortOrder }"
+              @click="sortBy = sort.sortBy; sortOrder = sort.sortOrder; loadData()"
+              size="small"
+            >
+              {{ sort.label }}
+            </el-button>
+          </div>
+        </div>
+
+        <!-- 标签筛选 -->
+        <div class="filter-row">
+          <span class="filter-label">标签:</span>
+          <div class="filter-buttons tags-container">
+            <el-button
+              v-for="tag in tags"
+              :key="tag.name"
+              :type="filterTag === tag.name ? 'primary' : ''"
+              :class="{ 'filter-button': true, 'active': filterTag === tag.name }"
+              @click="filterTag = tag.name; loadData()"
+              size="small"
+            >
+              {{ tag.name }}({{ tag.count }})
+            </el-button>
+            <el-button
+              v-if="tagsLoading"
+              :loading="true"
+              size="small"
+            >
+              加载中...
+            </el-button>
+          </div>
+        </div>
+      </div>
 
       <el-table :data="novels" style="width: 100%" v-loading="loading">
         <el-table-column prop="coverUrl" label="封面" width="80">
@@ -87,7 +191,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Search, Picture } from '@element-plus/icons-vue'
 import { crawlerApi } from '../api'
@@ -98,8 +202,70 @@ const novels = ref([])
 const currentPage = ref(1)
 const pageSize = ref(10)
 const total = ref(0)
+
+// 筛选条件
 const filterPlatform = ref('')
 const searchKeyword = ref('')
+const filterStatus = ref('')
+const filterTag = ref('')
+const wordCountMin = ref('')
+const wordCountMax = ref('')
+const sortBy = ref('updateTime')
+const sortOrder = ref('desc')
+
+// 标签数据
+const tags = ref([])
+const tagsLoading = ref(false)
+
+// 选项配置
+const platformOptions = [
+  { label: '全部', value: '' },
+  { label: '刺猬猫', value: 'ciweimao' },
+  { label: '起点', value: 'qidian' },
+  { label: 'SF轻小说', value: 'sf' },
+  { label: '次元姬', value: 'ciyuanji' }
+]
+
+const statusOptions = [
+  { label: '全部', value: '' },
+  { label: '连载中', value: 1 },
+  { label: '已完结', value: 2 },
+  { label: '停更', value: 0 }
+]
+
+const wordCountOptions = [
+  { label: '全部', value: '' },
+  { label: '10w', value: '10w' },
+  { label: '30w', value: '30w' },
+  { label: '50w', value: '50w' },
+  { label: '100w', value: '100w' },
+  { label: '200w', value: '200w' }
+]
+
+const sortOptions = [
+  { label: '更新时间↓', value: 'updateTime-desc', sortBy: 'updateTime', sortOrder: 'desc' },
+  { label: '更新时间↑', value: 'updateTime-asc', sortBy: 'updateTime', sortOrder: 'asc' },
+  { label: '字数↓', value: 'wordCount-desc', sortBy: 'wordCount', sortOrder: 'desc' },
+  { label: '字数↑', value: 'wordCount-asc', sortBy: 'wordCount', sortOrder: 'asc' }
+]
+
+// 加载标签列表
+const loadTags = async () => {
+  tagsLoading.value = true
+  try {
+    const response = await crawlerApi.getTags()
+    if (response && response.success && response.tags) {
+      tags.value = response.tags.map(tag => ({
+        name: tag.tag_name,
+        count: tag.tag_count
+      }))
+    }
+  } catch (error) {
+    console.error('加载标签列表失败:', error)
+  } finally {
+    tagsLoading.value = false
+  }
+}
 
 const getPlatformName = (platform) => {
   const names = {
@@ -132,20 +298,40 @@ const getStatusText = (status) => {
 const loadData = async () => {
   loading.value = true
   try {
-    let data
-    if (filterPlatform.value) {
-      data = await crawlerApi.getNovelsByPlatform(filterPlatform.value)
-    } else {
-      data = await crawlerApi.getNovels({
-        page: currentPage.value - 1,
-        size: pageSize.value
-      })
+    const params = {
+      page: currentPage.value - 1,
+      size: pageSize.value
     }
     
-    if (Array.isArray(data)) {
-      novels.value = data
-      total.value = data.length
-    } else if (data.content) {
+    // 添加筛选参数
+    if (filterPlatform.value) {
+      params.platform = filterPlatform.value
+    }
+    if (searchKeyword.value) {
+      params.keyword = searchKeyword.value
+    }
+    if (filterStatus.value !== '') {
+      params.status = filterStatus.value
+    }
+    if (filterTag.value) {
+      params.tag = filterTag.value
+    }
+    if (wordCountMin.value) {
+      params.wordCountMin = wordCountMin.value
+    }
+    if (wordCountMax.value) {
+      params.wordCountMax = wordCountMax.value
+    }
+    if (sortBy.value) {
+      params.sortBy = sortBy.value
+    }
+    if (sortOrder.value) {
+      params.sortOrder = sortOrder.value
+    }
+    
+    const data = await crawlerApi.getNovels(params)
+    
+    if (data.content) {
       novels.value = data.content
       total.value = data.totalElements
     }
@@ -160,12 +346,8 @@ const viewDetail = (row) => {
   router.push(`/novels/${row.id}`)
 }
 
-watch(filterPlatform, () => {
-  currentPage.value = 1
-  loadData()
-})
-
 onMounted(() => {
+  loadTags()
   loadData()
 })
 </script>
@@ -194,5 +376,94 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   color: #c0c4cc;
+}
+
+/* 筛选区域样式 */
+.filter-section {
+  margin-bottom: 20px;
+}
+
+.filter-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.filter-label {
+  width: 60px;
+  font-weight: 500;
+  color: #606266;
+  flex-shrink: 0;
+}
+
+.filter-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.filter-button {
+  border: 1px solid #DCDFE6;
+  background-color: #F5F7FA;
+  color: #606266;
+  transition: all 0.3s ease;
+}
+
+.filter-button:hover {
+  background-color: #ECF5FF;
+  border-color: #409EFF;
+  color: #409EFF;
+}
+
+.filter-button.active {
+  background-color: #409EFF;
+  border-color: #409EFF;
+  color: #FFFFFF;
+  box-shadow: 0 2px 4px rgba(64, 158, 255, 0.3);
+}
+
+/* 字数筛选特殊样式 */
+.word-count-filters {
+  display: flex;
+  gap: 20px;
+}
+
+.word-count-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.word-count-label {
+  font-size: 12px;
+  color: #909399;
+}
+
+/* 标签横向滚动 */
+.tags-container {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 4px 0;
+  max-width: 100%;
+  flex-wrap: nowrap;
+}
+
+.tags-container::-webkit-scrollbar {
+  height: 4px;
+}
+
+.tags-container::-webkit-scrollbar-thumb {
+  background: #DCDFE6;
+  border-radius: 2px;
+}
+
+.tags-container::-webkit-scrollbar-thumb:hover {
+  background: #C0C4CC;
+}
+
+.tags-container::-webkit-scrollbar-track {
+  background: #F5F7FA;
 }
 </style>

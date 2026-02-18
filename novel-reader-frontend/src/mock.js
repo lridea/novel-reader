@@ -1,4 +1,17 @@
 // Mock API 数据
+const MOCK_TAGS = [
+  { tag_name: '玄幻', tag_count: 1250 },
+  { tag_name: '修仙', tag_count: 980 },
+  { tag_name: '穿越', tag_count: 856 },
+  { tag_name: '都市', tag_count: 723 },
+  { tag_name: '系统', tag_count: 654 },
+  { tag_name: '重生', tag_count: 521 },
+  { tag_name: '同人', tag_count: 498 },
+  { tag_name: '动漫', tag_count: 445 },
+  { tag_name: '二次元', tag_count: 389 },
+  { tag_name: '神医', tag_count: 312 }
+]
+
 const MOCK_NOVELS = [
   {
     id: 1,
@@ -357,6 +370,26 @@ export const mockApi = {
   // 根据平台获取小说（返回数组，与后端一致）
   async getNovelsByPlatform(platform) {
     return MOCK_NOVELS.filter(n => n.platform === platform)
+  },
+
+  // 获取所有标签
+  async getTags() {
+    await delay()
+    return {
+      success: true,
+      tags: MOCK_TAGS
+    }
+  },
+
+  // 获取指定平台的标签
+  async getTagsByPlatform(platform) {
+    await delay()
+    // 简化处理：返回所有标签（实际应该根据平台筛选）
+    return {
+      success: true,
+      platform,
+      tags: MOCK_TAGS.slice(0, 5)
+    }
   },
 
   // 获取所有配置

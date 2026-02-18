@@ -48,6 +48,15 @@ export const crawlerApi = {
     return USE_MOCK ? mockApi.getNovelsByPlatform(platform) : api.get(`/crawler/novels/platform/${platform}`)
   },
 
+  // 标签相关API
+  getTags() {
+    return USE_MOCK ? mockApi.getTags() : api.get('/crawler/novels/tags')
+  },
+
+  getTagsByPlatform(platform) {
+    return USE_MOCK ? mockApi.getTagsByPlatform(platform) : api.get(`/crawler/novels/tags/platform/${platform}`)
+  },
+
   getConfigs() {
     return USE_MOCK ? mockApi.getConfigs() : api.get('/crawler/configs')
   },
