@@ -11,7 +11,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * 敏感词Controller
+ * 敏感词Controller（仅管理员可访问）
  */
 @Slf4j
 @RestController
@@ -20,6 +20,35 @@ public class SensitiveWordController {
 
     @Autowired
     private SensitiveWordService sensitiveWordService;
+
+    /**
+     * 检查用户是否为管理员
+     */
+    private boolean isAdmin(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return false;
+        }
+        User user = (User) authentication.getPrincipal();
+        return "ADMIN".equals(user.getRole());
+    }
+
+    /**
+     * 检查权限
+     */
+    private Map<String, Object> checkPermission(Authentication authentication) {
+        Map<String, Object> result = new HashMap<>();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            result.put("success", false);
+            result.put("message", "请先登录");
+            return result;
+        }
+        if (!isAdmin(authentication)) {
+            result.put("success", false);
+            result.put("message", "权限不足，仅管理员可访问");
+            return result;
+        }
+        return null;
+    }
 
     /**
      * 获取敏感词列表（分页）
@@ -34,12 +63,10 @@ public class SensitiveWordController {
     ) {
         log.info("获取敏感词列表: page={}, size={}, category={}, enabled={}", page, size, category, enabled);
 
-        // 检查用户是否登录
-        if (authentication == null || !authentication.isAuthenticated()) {
-            Map<String, Object> result = new HashMap<>();
-            result.put("success", false);
-            result.put("message", "请先登录");
-            return result;
+        // 检查权限
+        Map<String, Object> permissionCheck = checkPermission(authentication);
+        if (permissionCheck != null) {
+            return permissionCheck;
         }
 
         return sensitiveWordService.getSensitiveWords(page, size, category, enabled);
@@ -55,12 +82,10 @@ public class SensitiveWordController {
     ) {
         log.info("添加敏感词: {}", request);
 
-        // 检查用户是否登录
-        if (authentication == null || !authentication.isAuthenticated()) {
-            Map<String, Object> result = new HashMap<>();
-            result.put("success", false);
-            result.put("message", "请先登录");
-            return result;
+        // 检查权限
+        Map<String, Object> permissionCheck = checkPermission(authentication);
+        if (permissionCheck != null) {
+            return permissionCheck;
         }
 
         String word = (String) request.get("word");
@@ -81,12 +106,10 @@ public class SensitiveWordController {
     ) {
         log.info("更新敏感词: id={}, {}", id, request);
 
-        // 检查用户是否登录
-        if (authentication == null || !authentication.isAuthenticated()) {
-            Map<String, Object> result = new HashMap<>();
-            result.put("success", false);
-            result.put("message", "请先登录");
-            return result;
+        // 检查权限
+        Map<String, Object> permissionCheck = checkPermission(authentication);
+        if (permissionCheck != null) {
+            return permissionCheck;
         }
 
         String word = (String) request.get("word");
@@ -107,15 +130,35 @@ public class SensitiveWordController {
     ) {
         log.info("删除敏感词: id={}", id);
 
-        // 检查用户是否登录
-        if (authentication == null || !authentication.isAuthenticated()) {
-            Map<String, Object> result = new HashMap<>();
-            result.put("success", false);
-            result.put("message", "请先登录");
-            return result;
+        // 检查权限
+        Map<String, Object> permissionCheck = checkPermission(authentication);
+        if (permissionCheck != null) {
+            return permissionCheck;
         }
 
         return sensitiveWordService.deleteSensitiveWord(id);
+    }
+
+    /**
+     * 批量删除敏感词
+     */
+    @DeleteMapping("/batch")
+    public Map<String, Object> batchDeleteSensitiveWords(
+            @RequestBody Map<String, Object> request,
+            Authentication authentication
+    ) {
+        log.info("批量删除敏感词: {}", request);
+
+        // 检查权限
+        Map<String, Object> permissionCheck = checkPermission(authentication);
+        if (permissionCheck != null) {
+            return permissionCheck;
+        }
+
+        @SuppressWarnings("unchecked")
+        List<Long> ids = (List<Long>) request.get("ids");
+
+        return sensitiveWordService.batchDeleteSensitiveWords(ids);
     }
 
     /**
@@ -128,12 +171,10 @@ public class SensitiveWordController {
     ) {
         log.info("测试文本: {}", request);
 
-        // 检查用户是否登录
-        if (authentication == null || !authentication.isAuthenticated()) {
-            Map<String, Object> result = new HashMap<>();
-            result.put("success", false);
-            result.put("message", "请先登录");
-            return result;
+        // 检查权限
+        Map<String, Object> permissionCheck = checkPermission(authentication);
+        if (permissionCheck != null) {
+            return permissionCheck;
         }
 
         String text = request.get("text");
@@ -151,25 +192,14 @@ public class SensitiveWordController {
     ) {
         log.info("导入敏感词库: {}", request);
 
-        // 检查用户是否登录
-        if (authentication == null || !authentication.isAuthenticated()) {
-            Map<String, Object> result = new HashMap<>();
-            result.put("success", false);
-            result.put("message", "请先登录");
-            return result;
-        }
-
-        // 从文件导入
-        String filePath = (String) request.get("filePath");
-        if (filePath != null && !filePath.isEmpty()) {
-            // TODO: 实现文件导入
-            Map<String, Object> result = new HashMap<>();
-            result.put("success", false);
-            result.put("message", "文件导入功能待实现");
-            return result;
+        // 检查权限
+        Map<String, Object> permissionCheck = checkPermission(authentication);
+        if (permissionCheck != null) {
+            return permissionCheck;
         }
 
         // 批量导入敏感词
+        @SuppressWarnings("unchecked")
         List<String> words = (List<String>) request.get("words");
         if (words != null && !words.isEmpty()) {
             return sensitiveWordService.importWords(words);

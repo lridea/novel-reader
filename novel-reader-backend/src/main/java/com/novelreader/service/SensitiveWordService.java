@@ -163,6 +163,39 @@ public class SensitiveWordService {
     }
 
     /**
+     * 批量删除敏感词
+     */
+    @Transactional
+    public Map<String, Object> batchDeleteSensitiveWords(List<Long> ids) {
+        log.info("批量删除敏感词: ids={}", ids);
+
+        Map<String, Object> result = new HashMap<>();
+
+        if (ids == null || ids.isEmpty()) {
+            result.put("success", false);
+            result.put("message", "参数错误");
+            return result;
+        }
+
+        int deleteCount = 0;
+        for (Long id : ids) {
+            if (sensitiveWordRepository.existsById(id)) {
+                sensitiveWordRepository.deleteById(id);
+                deleteCount++;
+            }
+        }
+
+        // 重新加载敏感词库
+        sensitiveWordFilter.reload();
+
+        result.put("success", true);
+        result.put("message", "批量删除成功");
+        result.put("deleteCount", deleteCount);
+
+        return result;
+    }
+
+    /**
      * 测试文本是否包含敏感词
      */
     public Map<String, Object> testText(String text) {

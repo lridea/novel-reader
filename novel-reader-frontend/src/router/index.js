@@ -42,6 +42,12 @@ const routes = [
         name: 'NovelDetail',
         component: () => import('../views/NovelDetail.vue'),
         meta: { title: '小说详情' }
+      },
+      {
+        path: 'sensitive-words',
+        name: 'SensitiveWords',
+        component: () => import('../views/SensitiveWords.vue'),
+        meta: { title: '敏感词管理' }
       }
     ]
   }

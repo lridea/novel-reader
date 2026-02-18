@@ -849,7 +849,178 @@ export const mockApi = {
       liked: false,
       commentLikeCount: comment.likeCount
     }
+  },
+
+  // 敏感词管理API
+  async getSensitiveWords(params) {
+    await delay()
+    const { page = 0, size = 10, category, enabled } = params
+
+    let words = MOCK_SENSITIVE_WORDS || []
+
+    // 过滤分类
+    if (category) {
+      words = words.filter(w => w.category === category)
+    }
+
+    // 过滤状态
+    if (enabled !== undefined && enabled !== null) {
+      words = words.filter(w => w.enabled === enabled)
+    }
+
+    const total = words.length
+    const start = page * size
+    const end = start + size
+    const content = words.slice(start, end)
+
+    return {
+      success: true,
+      content,
+      totalElements: total,
+      totalPages: Math.ceil(total / size),
+      size,
+      number: page
+    }
+  },
+
+  async addSensitiveWord(data) {
+    await delay()
+    const { word, category, severity = 1 } = data
+
+    // 检查是否已存在
+    if (MOCK_SENSITIVE_WORDS && MOCK_SENSITIVE_WORDS.some(w => w.word === word)) {
+      throw new Error('敏感词已存在')
+    }
+
+    const newWord = {
+      id: Date.now(),
+      word,
+      category,
+      severity,
+      enabled: 1,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    }
+
+    if (!MOCK_SENSITIVE_WORDS) {
+      global.MOCK_SENSITIVE_WORDS = []
+    }
+    global.MOCK_SENSITIVE_WORDS.push(newWord)
+
+    return {
+      success: true,
+      message: '添加成功',
+      sensitiveWord: newWord
+    }
+  },
+
+  async updateSensitiveWord(id, data) {
+    await delay()
+    const word = MOCK_SENSITIVE_WORDS.find(w => w.id === id)
+    if (!word) {
+      throw new Error('敏感词不存在')
+    }
+
+    // 更新字段
+    if (data.word) word.word = data.word
+    if (data.category) word.category = data.category
+    if (data.severity) word.severity = data.severity
+    if (data.enabled !== undefined && data.enabled !== null) word.enabled = data.enabled
+
+    word.updatedAt = new Date().toISOString()
+
+    return {
+      success: true,
+      message: '更新成功',
+      sensitiveWord: word
+    }
+  },
+
+  async deleteSensitiveWord(id) {
+    await delay()
+    const index = MOCK_SENSITIVE_WORDS.findIndex(w => w.id === id)
+    if (index === -1) {
+      throw new Error('敏感词不存在')
+    }
+
+    MOCK_SENSITIVE_WORDS.splice(index, 1)
+
+    return {
+      success: true,
+      message: '删除成功'
+    }
+  },
+
+  async batchDeleteSensitiveWords(ids) {
+    await delay()
+    let deleteCount = 0
+
+    for (const id of ids) {
+      const index = MOCK_SENSITIVE_WORDS.findIndex(w => w.id === id)
+      if (index !== -1) {
+        MOCK_SENSITIVE_WORDS.splice(index, 1)
+        deleteCount++
+      }
+    }
+
+    return {
+      success: true,
+      message: '批量删除成功',
+      deleteCount
+    }
+  },
+
+  async importSensitiveWords(words) {
+    await delay()
+    let successCount = 0
+    let skipCount = 0
+
+    if (!MOCK_SENSITIVE_WORDS) {
+      global.MOCK_SENSITIVE_WORDS = []
+    }
+
+    for (const word of words) {
+      const trimmedWord = word.trim()
+      if (!trimmedWord) continue
+
+      // 检查是否已存在
+      if (MOCK_SENSITIVE_WORDS.some(w => w.word === trimmedWord)) {
+        skipCount++
+        continue
+      }
+
+      const newWord = {
+        id: Date.now() + Math.random(),
+        word: trimmedWord,
+        category: '其他',
+        severity: 1,
+        enabled: 1,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }
+
+      MOCK_SENSITIVE_WORDS.push(newWord)
+      successCount++
+    }
+
+    return {
+      success: true,
+      message: '导入成功',
+      successCount,
+      skipCount
+    }
   }
 }
+
+// 初始化Mock敏感词数据
+global.MOCK_SENSITIVE_WORDS = global.MOCK_SENSITIVE_WORDS || [
+  { id: 1, word: '暴力', category: '暴力', severity: 2, enabled: 1, createdAt: '2026-02-18T08:00:00', updatedAt: '2026-02-18T08:00:00' },
+  { id: 2, word: '色情', category: '色情', severity: 3, enabled: 1, createdAt: '2026-02-18T08:00:00', updatedAt: '2026-02-18T08:00:00' },
+  { id: 3, word: '毒品', category: '违法', severity: 3, enabled: 1, createdAt: '2026-02-18T08:00:00', updatedAt: '2026-02-18T08:00:00' },
+  { id: 4, word: '赌博', category: '违法', severity: 3, enabled: 1, createdAt: '2026-02-18T08:00:00', updatedAt: '2026-02-18T08:00:00' },
+  { id: 5, word: '诈骗', category: '违法', severity: 3, enabled: 1, createdAt: '2026-02-18T08:00:00', updatedAt: '2026-02-18T08:00:00' }
+]
+
+const MOCK_SENSITIVE_WORDS = global.MOCK_SENSITIVE_WORDS
 
 export default mockApi

@@ -158,6 +158,31 @@ export const crawlerApi = {
 
   unlikeComment(commentId) {
     return USE_MOCK ? mockApi.unlikeComment(commentId) : api.delete(`/comments/${commentId}/like`)
+  },
+
+  // 敏感词管理API
+  getSensitiveWords(params) {
+    return USE_MOCK ? mockApi.getSensitiveWords(params) : api.get('/sensitive-words', { params })
+  },
+
+  addSensitiveWord(data) {
+    return USE_MOCK ? mockApi.addSensitiveWord(data) : api.post('/sensitive-words', data)
+  },
+
+  updateSensitiveWord(id, data) {
+    return USE_MOCK ? mockApi.updateSensitiveWord(id, data) : api.put(`/sensitive-words/${id}`, data)
+  },
+
+  deleteSensitiveWord(id) {
+    return USE_MOCK ? mockApi.deleteSensitiveWord(id) : api.delete(`/sensitive-words/${id}`)
+  },
+
+  batchDeleteSensitiveWords(ids) {
+    return USE_MOCK ? mockApi.batchDeleteSensitiveWords(ids) : api.delete('/sensitive-words/batch', { data: { ids } })
+  },
+
+  importSensitiveWords(words) {
+    return USE_MOCK ? mockApi.importSensitiveWords(words) : api.post('/sensitive-words/import', { words })
   }
 }
 
