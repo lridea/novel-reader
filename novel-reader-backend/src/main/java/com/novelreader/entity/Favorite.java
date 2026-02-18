@@ -2,6 +2,7 @@ package com.novelreader.entity;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -15,7 +16,7 @@ import java.time.LocalDateTime;
 @Table(name = "t_favorite", indexes = {
     @Index(name = "idx_user_id", columnList = "userId"),
     @Index(name = "idx_novel_id", columnList = "novelId"),
-    @Index(name = "idx_user_novel", columnList = {"userId", "novelId"})
+    @Index(name = "idx_user_novel", columnList = "userId,novelId")
 }, uniqueConstraints = {
     @UniqueConstraint(name = "uk_user_novel", columnNames = {"userId", "novelId"})
 })

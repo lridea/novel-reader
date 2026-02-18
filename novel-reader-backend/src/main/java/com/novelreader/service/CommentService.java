@@ -181,7 +181,7 @@ public class CommentService {
             userInfo.setId(user.getId());
             userInfo.setUsername(user.getUsername());
             userInfo.setNickname(user.getNickname());
-            userInfo.setAvatar(user.getAvatar());
+            userInfo.setAvatar(user.getAvatarUrl());
             commentInfo.put("user", userInfo);
         }
 
@@ -197,7 +197,7 @@ public class CommentService {
                     parentUserInfo.setId(parentUser.getId());
                     parentUserInfo.setUsername(parentUser.getUsername());
                     parentUserInfo.setNickname(parentUser.getNickname());
-                    parentUserInfo.setAvatar(parentUser.getAvatar());
+                    parentUserInfo.setAvatar(parentUser.getAvatarUrl());
                     commentInfo.put("parentUser", parentUserInfo);
                 }
             }

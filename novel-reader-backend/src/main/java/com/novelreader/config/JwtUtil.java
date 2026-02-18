@@ -2,7 +2,6 @@ package com.novelreader.config;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -13,29 +12,20 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * JWT 工具类
- */
 @Component
 public class JwtUtil {
 
     @Value("${jwt.secret:your-secret-key-must-be-at-least-256-bits-long-for-hs256-algorithm}")
     private String secret;
 
-    @Value("${jwt.expiration:604800000}") // 7天
+    @Value("${jwt.expiration:604800000}")
     private Long expiration;
 
-    /**
-     * 生成密钥
-     */
     private SecretKey getSigningKey() {
         byte[] keyBytes = secret.getBytes(StandardCharsets.UTF_8);
         return Keys.hmacShaKeyFor(keyBytes);
     }
 
-    /**
-     * 生成Token
-     */
     public String generateToken(Long userId, String username, String role) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", userId);
@@ -44,49 +34,34 @@ public class JwtUtil {
         return createToken(claims, userId.toString());
     }
 
-    /**
-     * 创建Token
-     */
     private String createToken(Map<String, Object> claims, String subject) {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + expiration);
 
         return Jwts.builder()
-                .setClaims(claims)
-                .setSubject(subject)
-                .setIssuedAt(now)
-                .setExpiration(expiryDate)
-                .signWith(getSigningKey(), SignatureAlgorithm.HS256)
+                .claims(claims)
+                .subject(subject)
+                .issuedAt(now)
+                .expiration(expiryDate)
+                .signWith(getSigningKey())
                 .compact();
     }
 
-    /**
-     * 从Token中获取用户ID
-     */
     public Long getUserIdFromToken(String token) {
         Claims claims = getClaimsFromToken(token);
         return claims.get("userId", Long.class);
     }
 
-    /**
-     * 从Token中获取用户名
-     */
     public String getUsernameFromToken(String token) {
         Claims claims = getClaimsFromToken(token);
         return claims.get("username", String.class);
     }
 
-    /**
-     * 从Token中获取角色
-     */
     public String getRoleFromToken(String token) {
         Claims claims = getClaimsFromToken(token);
         return claims.get("role", String.class);
     }
 
-    /**
-     * 验证Token
-     */
     public boolean validateToken(String token) {
         try {
             getClaimsFromToken(token);
@@ -96,28 +71,19 @@ public class JwtUtil {
         }
     }
 
-    /**
-     * 从Token中获取Claims
-     */
     private Claims getClaimsFromToken(String token) {
-        return Jwts.parserBuilder()
-                .setSigningKey(getSigningKey())
+        return Jwts.parser()
+                .verifyWith(getSigningKey())
                 .build()
-                .parseClaimsJws(token)
-                .getBody();
+                .parseSignedClaims(token)
+                .getPayload();
     }
 
-    /**
-     * 获取Token过期时间
-     */
     public Date getExpirationDateFromToken(String token) {
         Claims claims = getClaimsFromToken(token);
         return claims.getExpiration();
     }
 
-    /**
-     * 判断Token是否过期
-     */
     public boolean isTokenExpired(String token) {
         try {
             Date expiration = getExpirationDateFromToken(token);

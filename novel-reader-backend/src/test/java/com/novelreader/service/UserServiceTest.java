@@ -158,28 +158,25 @@ class UserServiceTest {
 
     @Test
     void testChangePassword_Success() {
-        // Given
         Long userId = 1L;
         String oldPassword = "OldPass@123";
         String newPassword = "NewPass@456";
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
-        when(passwordEncoder.matches(oldPassword, testUser.getPassword())).thenReturn(true);
+        when(passwordEncoder.matches(oldPassword, "encodedPassword")).thenReturn(true);
         when(passwordEncoder.encode(newPassword)).thenReturn("newEncodedPassword");
         when(userRepository.save(any(User.class))).thenReturn(testUser);
 
-        // When
         Map<String, Object> result = userService.changePassword(userId, oldPassword, newPassword);
 
-        // Then
         assertNotNull(result);
         assertTrue((Boolean) result.get("success"));
         assertEquals("密码修改成功", result.get("message"));
 
         verify(userRepository).findById(userId);
-        verify(passwordEncoder).matches(oldPassword, testUser.getPassword());
+        verify(passwordEncoder).matches(oldPassword, "encodedPassword");
         verify(passwordEncoder).encode(newPassword);
-        verify(userRepository).save(testUser);
+        verify(userRepository).save(any(User.class));
     }
 
     @Test

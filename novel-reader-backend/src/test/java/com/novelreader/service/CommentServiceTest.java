@@ -3,6 +3,9 @@ package com.novelreader.service;
 import com.novelreader.entity.Comment;
 import com.novelreader.entity.Novel;
 import com.novelreader.entity.User;
+import com.novelreader.filter.FilterResult;
+import com.novelreader.filter.SensitiveWordFilter;
+import com.novelreader.repository.CommentLikeRepository;
 import com.novelreader.repository.CommentRepository;
 import com.novelreader.repository.NovelRepository;
 import com.novelreader.repository.UserRepository;
@@ -22,9 +25,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.*;
 
-/**
- * CommentService测试
- */
 @ExtendWith(MockitoExtension.class)
 class CommentServiceTest {
 
@@ -36,6 +36,12 @@ class CommentServiceTest {
 
     @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private SensitiveWordFilter sensitiveWordFilter;
+
+    @Mock
+    private CommentLikeRepository commentLikeRepository;
 
     @InjectMocks
     private CommentService commentService;
@@ -51,7 +57,7 @@ class CommentServiceTest {
         testUser.setId(1L);
         testUser.setUsername("testuser");
         testUser.setNickname("测试用户");
-        testUser.setAvatar("https://example.com/avatar.jpg");
+        testUser.setAvatarUrl("https://example.com/avatar.jpg");
 
         // 创建测试小说
         testNovel = new Novel();
@@ -76,32 +82,28 @@ class CommentServiceTest {
 
     @Test
     void testAddTopLevelComment() {
-        // Given
         Long userId = 1L;
         Long novelId = 1L;
         Long parentId = null;
         Integer floor = 1;
         String content = "这本书太好看了！";
 
+        when(sensitiveWordFilter.filter(content)).thenReturn(new FilterResult(false, content, null));
         when(novelRepository.findById(novelId)).thenReturn(Optional.of(testNovel));
         when(commentRepository.save(any(Comment.class))).thenReturn(testComment);
         when(userRepository.findById(anyLong())).thenReturn(Optional.of(testUser));
 
-        // When
         Map<String, Object> result = commentService.addComment(userId, novelId, parentId, floor, content);
 
-        // Then
         assertTrue((Boolean) result.get("success"));
         assertEquals("评论成功", result.get("message"));
 
-        // 验证调用
         verify(novelRepository).incrementCommentCount(novelId);
         verify(commentRepository).save(any(Comment.class));
     }
 
     @Test
     void testAddReplyComment() {
-        // Given
         Long userId = 2L;
         Long novelId = 1L;
         Long parentId = 1L;
@@ -112,7 +114,7 @@ class CommentServiceTest {
         user2.setId(2L);
         user2.setUsername("user2");
         user2.setNickname("用户2");
-        user2.setAvatar("https://example.com/avatar2.jpg");
+        user2.setAvatarUrl("https://example.com/avatar2.jpg");
 
         Comment parentComment = new Comment();
         parentComment.setId(1L);
@@ -124,19 +126,17 @@ class CommentServiceTest {
         parentComment.setLikeCount(0);
         parentComment.setReplyCount(0);
 
+        when(sensitiveWordFilter.filter(content)).thenReturn(new FilterResult(false, content, null));
         when(novelRepository.findById(novelId)).thenReturn(Optional.of(testNovel));
         when(commentRepository.findById(parentId)).thenReturn(Optional.of(parentComment));
         when(commentRepository.save(any(Comment.class))).thenReturn(testComment);
         when(userRepository.findById(anyLong())).thenReturn(Optional.of(user2), Optional.of(testUser));
 
-        // When
         Map<String, Object> result = commentService.addComment(userId, novelId, parentId, floor, content);
 
-        // Then
         assertTrue((Boolean) result.get("success"));
         assertEquals("评论成功", result.get("message"));
 
-        // 验证调用
         verify(novelRepository).incrementCommentCount(novelId);
         verify(commentRepository).incrementReplyCount(parentId);
         verify(commentRepository).save(any(Comment.class));
@@ -191,7 +191,6 @@ class CommentServiceTest {
 
     @Test
     void testGetComments() {
-        // Given
         Long novelId = 1L;
         Integer page = 0;
         Integer size = 10;
@@ -200,12 +199,11 @@ class CommentServiceTest {
         Long userId = 1L;
 
         when(novelRepository.findById(novelId)).thenReturn(Optional.of(testNovel));
-        when(userRepository.findById(anyLong())).thenReturn(Optional.of(testUser));
+        when(commentRepository.findByNovelIdAndFloorAndDeletedOrderByLikeCountDesc(anyLong(), anyInt(), anyInt(), any()))
+                .thenReturn(new org.springframework.data.domain.PageImpl<>(java.util.Collections.emptyList()));
 
-        // When
         Map<String, Object> result = commentService.getComments(novelId, page, size, floor, parentId, userId);
 
-        // Then
         assertTrue((Boolean) result.get("success"));
         assertNotNull(result.get("content"));
     }

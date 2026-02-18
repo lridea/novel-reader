@@ -336,15 +336,6 @@ public class CrawlerController {
     }
 
     /**
-     * 获取所有爬虫配置
-     */
-    @GetMapping("/configs")
-    @PreAuthorize("hasRole('ADMIN')")
-    public Object getAllConfigs() {
-        return crawlerConfigService.findAll();
-    }
-
-    /**
      * 获取所有爬虫
      */
     @GetMapping("/crawlers")

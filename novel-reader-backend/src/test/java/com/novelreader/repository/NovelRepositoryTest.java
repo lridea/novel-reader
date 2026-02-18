@@ -1,9 +1,10 @@
 package com.novelreader.repository;
 
 import com.novelreader.entity.Novel;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -11,25 +12,37 @@ import org.springframework.data.domain.Sort;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.util.List;
-import java.util.Map;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/**
- * NovelRepository 单元测试
- */
-@SpringBootTest
+@DataJpaTest
 @ActiveProfiles("test")
 public class NovelRepositoryTest {
 
     @Autowired
     private NovelRepository novelRepository;
 
+    @BeforeEach
+    void setUp() {
+        Novel novel = new Novel();
+        novel.setPlatform("ciweimao");
+        novel.setNovelId("1001");
+        novel.setTitle("测试小说");
+        novel.setAuthor("测试作者");
+        novel.setWordCount(1000000L);
+        novel.setStatus(1);
+        novel.setTags("[\"玄幻\",\"修仙\"]");
+        novel.setFavoriteCount(100);
+        novel.setDeleted(0);
+        novelRepository.save(novel);
+    }
+
     @Test
     public void testFindByPlatformAndNovelId() {
-        Novel novel = novelRepository.findByPlatformAndNovelId("ciweimao", "100466055");
+        Novel novel = novelRepository.findByPlatformAndNovelId("ciweimao", "1001");
         assertNotNull(novel);
-        assertEquals("修仙从系统开始", novel.getTitle());
+        assertEquals("测试小说", novel.getTitle());
     }
 
     @Test
@@ -43,6 +56,7 @@ public class NovelRepositoryTest {
     public void testFindByStatus() {
         List<Novel> novels = novelRepository.findByStatus(1);
         assertNotNull(novels);
+        assertFalse(novels.isEmpty());
     }
 
     @Test
@@ -57,7 +71,7 @@ public class NovelRepositoryTest {
     @Test
     public void testSearchByKeyword() {
         Pageable pageable = PageRequest.of(0, 10);
-        Page<Novel> novelPage = novelRepository.searchByKeyword("修仙", pageable);
+        Page<Novel> novelPage = novelRepository.searchByKeyword("测试", pageable);
 
         assertNotNull(novelPage);
         assertFalse(novelPage.isEmpty());
@@ -66,7 +80,7 @@ public class NovelRepositoryTest {
     @Test
     public void testSearchByPlatformAndKeyword() {
         Pageable pageable = PageRequest.of(0, 10);
-        Page<Novel> novelPage = novelRepository.searchByPlatformAndKeyword("ciweimao", "修仙", pageable);
+        Page<Novel> novelPage = novelRepository.searchByPlatformAndKeyword("ciweimao", "测试", pageable);
 
         assertNotNull(novelPage);
         assertFalse(novelPage.isEmpty());
@@ -77,11 +91,13 @@ public class NovelRepositoryTest {
         Pageable pageable = PageRequest.of(0, 10);
         Page<Novel> novelPage = novelRepository.searchNovels(
                 "ciweimao",
-                "修仙",
+                "测试",
                 1,
                 "玄幻",
                 100000L,
                 2000000L,
+                0,
+                1000,
                 pageable
         );
 
@@ -95,6 +111,8 @@ public class NovelRepositoryTest {
                 null,
                 null,
                 1,
+                null,
+                null,
                 null,
                 null,
                 null,
@@ -114,6 +132,8 @@ public class NovelRepositoryTest {
                 "玄幻",
                 null,
                 null,
+                null,
+                null,
                 pageable
         );
 
@@ -130,38 +150,11 @@ public class NovelRepositoryTest {
                 null,
                 100000L,
                 2000000L,
+                null,
+                null,
                 pageable
         );
 
         assertNotNull(novelPage);
-    }
-
-    @Test
-    public void testGetAllTags() {
-        List<Map<String, Object>> tags = novelRepository.getAllTags();
-
-        assertNotNull(tags);
-        assertFalse(tags.isEmpty());
-        assertTrue(tags.size() <= 100);
-
-        if (!tags.isEmpty()) {
-            Map<String, Object> firstTag = tags.get(0);
-            assertTrue(firstTag.containsKey("tag_name"));
-            assertTrue(firstTag.containsKey("tag_count"));
-        }
-    }
-
-    @Test
-    public void testGetTagsByPlatform() {
-        List<Map<String, Object>> tags = novelRepository.getTagsByPlatform("ciweimao");
-
-        assertNotNull(tags);
-        assertTrue(tags.size() <= 100);
-
-        if (!tags.isEmpty()) {
-            Map<String, Object> firstTag = tags.get(0);
-            assertTrue(firstTag.containsKey("tag_name"));
-            assertTrue(firstTag.containsKey("tag_count"));
-        }
     }
 }

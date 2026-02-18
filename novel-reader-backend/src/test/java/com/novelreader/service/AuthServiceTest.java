@@ -196,24 +196,19 @@ class AuthServiceTest {
 
     @Test
     void testLogin_AccountDisabled() {
-        // Given
         String email = "test@example.com";
         String password = "Test@123";
         testUser.setEnabled(0);
 
         when(userRepository.findByEmail(email)).thenReturn(Optional.of(testUser));
-        when(passwordEncoder.matches(password, testUser.getPassword())).thenReturn(true);
 
-        // When
         Map<String, Object> result = authService.login(email, password);
 
-        // Then
         assertNotNull(result);
         assertFalse((Boolean) result.get("success"));
         assertEquals("账号已被禁用", result.get("message"));
 
         verify(userRepository).findByEmail(email);
-        verify(passwordEncoder).matches(password, testUser.getPassword());
     }
 
     @Test

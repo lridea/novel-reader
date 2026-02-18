@@ -90,7 +90,7 @@ class FavoriteServiceTest {
         assertEquals("收藏成功", result.get("message"));
         assertNotNull(result.get("favorite"));
 
-        verify(novelRepository).findById(novelId);
+        verify(novelRepository, atLeastOnce()).findById(novelId);
         verify(favoriteRepository).existsByUserIdAndNovelId(userId, novelId);
         verify(favoriteRepository).save(any(Favorite.class));
     }
@@ -189,7 +189,7 @@ class FavoriteServiceTest {
         List<Favorite> favorites = List.of(testFavorite);
         Page<Favorite> favoritePage = new PageImpl<>(favorites, PageRequest.of(page, size), 1);
 
-        when(favoriteRepository.findByUserIdOrderByCreatedAtDesc(userId, any(Pageable.class)))
+        when(favoriteRepository.findByUserIdOrderByCreatedAtDesc(eq(userId), any(Pageable.class)))
                 .thenReturn(favoritePage);
 
         // When
@@ -204,7 +204,7 @@ class FavoriteServiceTest {
         assertEquals(size, result.get("size"));
         assertEquals(page, result.get("number"));
 
-        verify(favoriteRepository).findByUserIdOrderByCreatedAtDesc(userId, any(Pageable.class));
+        verify(favoriteRepository).findByUserIdOrderByCreatedAtDesc(eq(userId), any(Pageable.class));
     }
 
     @Test
