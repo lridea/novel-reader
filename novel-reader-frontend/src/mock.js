@@ -647,13 +647,22 @@ export const mockApi = {
       comments = comments.filter(c => c.floor === 1)
     }
 
+    // 按点赞数降序排序（顶层评论）
+    if (floor !== 2) {
+      comments.sort((a, b) => (b.likeCount || 0) - (a.likeCount || 0))
+    }
+
     const total = comments.length
     const start = page * size
     const end = start + size
     const content = comments.slice(start, end)
 
     // 转换为DTO格式
+    const MOCK_COMMENT_LIKES = global.MOCK_COMMENT_LIKES || []
     const contentDtos = content.map(c => {
+      // 计算liked状态
+      const liked = MOCK_COMMENT_LIKES.some(l => l.userId === 1 && l.commentId === c.id)
+
       const dto = {
         id: c.id,
         userId: c.userId,
@@ -665,7 +674,7 @@ export const mockApi = {
         replyCount: c.replyCount,
         createdAt: c.createdAt,
         updatedAt: c.updatedAt,
-        liked: false,
+        liked,
         isOwner: c.userId === 1,
         user: {
           id: c.userId,
@@ -764,6 +773,81 @@ export const mockApi = {
       message: '评论成功',
       comment: commentDto,
       novelCommentCount: novel.commentCount || 0
+    }
+  },
+
+  // 点赞评论
+  async likeComment(commentId) {
+    await delay()
+
+    const comment = MOCK_COMMENTS.find(c => c.id === commentId)
+    if (!comment) {
+      throw new Error('评论不存在')
+    }
+
+    // 检查是否已点赞
+    const MOCK_COMMENT_LIKES = MOCK_COMMENT_LIKES || []
+    if (MOCK_COMMENT_LIKES.some(l => l.userId === 1 && l.commentId === commentId)) {
+      return {
+        success: false,
+        message: '已点赞该评论',
+        liked: true,
+        commentLikeCount: comment.likeCount
+      }
+    }
+
+    // 添加点赞记录
+    MOCK_COMMENT_LIKES.push({
+      userId: 1,
+      commentId,
+      createdAt: new Date().toISOString()
+    })
+
+    // 更新评论的点赞数
+    comment.likeCount = (comment.likeCount || 0) + 1
+
+    return {
+      success: true,
+      message: '点赞成功',
+      liked: true,
+      commentLikeCount: comment.likeCount
+    }
+  },
+
+  // 取消点赞评论
+  async unlikeComment(commentId) {
+    await delay()
+
+    const comment = MOCK_COMMENTS.find(c => c.id === commentId)
+    if (!comment) {
+      throw new Error('评论不存在')
+    }
+
+    // 检查是否已点赞
+    const MOCK_COMMENT_LIKES = MOCK_COMMENT_LIKES || []
+    const likeIndex = MOCK_COMMENT_LIKES.findIndex(l => l.userId === 1 && l.commentId === commentId)
+    if (likeIndex === -1) {
+      return {
+        success: false,
+        message: '未点赞该评论',
+        liked: false,
+        commentLikeCount: comment.likeCount
+      }
+    }
+
+    // 删除点赞记录
+    MOCK_COMMENT_LIKES.splice(likeIndex, 1)
+
+    // 更新评论的点赞数
+    if (comment.likeCount > 0) {
+      comment.likeCount = comment.likeCount - 1
+    }
+
+    return {
+      success: true,
+      message: '取消点赞成功',
+      liked: false,
+      commentLikeCount: comment.likeCount
     }
   }
 }

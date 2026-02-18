@@ -149,6 +149,15 @@ export const crawlerApi = {
 
   deleteCategory(id) {
     return USE_MOCK ? mockApi.deleteCategory(id) : api.delete(`/categories/${id}`)
+  },
+
+  // 评论点赞相关API
+  likeComment(commentId) {
+    return USE_MOCK ? mockApi.likeComment(commentId) : api.post(`/comments/${commentId}/like`)
+  },
+
+  unlikeComment(commentId) {
+    return USE_MOCK ? mockApi.unlikeComment(commentId) : api.delete(`/comments/${commentId}/like`)
   }
 }
 
