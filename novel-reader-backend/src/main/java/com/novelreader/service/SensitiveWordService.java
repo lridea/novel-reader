@@ -177,4 +177,55 @@ public class SensitiveWordService {
 
         return result;
     }
+
+    /**
+     * 批量导入敏感词
+     */
+    public Map<String, Object> importWords(List<String> words) {
+        log.info("批量导入敏感词: words={}", words.size());
+
+        Map<String, Object> result = new HashMap<>();
+
+        if (words == null || words.isEmpty()) {
+            result.put("success", false);
+            result.put("message", "敏感词列表为空");
+            return result;
+        }
+
+        int successCount = 0;
+        int skipCount = 0;
+
+        for (String word : words) {
+            word = word != null ? word.trim() : "";
+            if (word.isEmpty()) {
+                continue;
+            }
+
+            // 检查敏感词是否已存在
+            if (sensitiveWordRepository.findByWord(word).isPresent()) {
+                skipCount++;
+                continue;
+            }
+
+            // 创建敏感词
+            SensitiveWord sensitiveWord = new SensitiveWord();
+            sensitiveWord.setWord(word);
+            sensitiveWord.setCategory("其他");
+            sensitiveWord.setSeverity(1);
+            sensitiveWord.setEnabled(1);
+
+            sensitiveWordRepository.save(sensitiveWord);
+            successCount++;
+        }
+
+        // 重新加载敏感词库
+        sensitiveWordFilter.reload();
+
+        result.put("success", true);
+        result.put("message", "导入成功");
+        result.put("successCount", successCount);
+        result.put("skipCount", skipCount);
+
+        return result;
+    }
 }

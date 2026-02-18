@@ -140,4 +140,44 @@ public class SensitiveWordController {
 
         return sensitiveWordService.testText(text);
     }
+
+    /**
+     * 导入敏感词库
+     */
+    @PostMapping("/import")
+    public Map<String, Object> importWords(
+            @RequestBody Map<String, Object> request,
+            Authentication authentication
+    ) {
+        log.info("导入敏感词库: {}", request);
+
+        // 检查用户是否登录
+        if (authentication == null || !authentication.isAuthenticated()) {
+            Map<String, Object> result = new HashMap<>();
+            result.put("success", false);
+            result.put("message", "请先登录");
+            return result;
+        }
+
+        // 从文件导入
+        String filePath = (String) request.get("filePath");
+        if (filePath != null && !filePath.isEmpty()) {
+            // TODO: 实现文件导入
+            Map<String, Object> result = new HashMap<>();
+            result.put("success", false);
+            result.put("message", "文件导入功能待实现");
+            return result;
+        }
+
+        // 批量导入敏感词
+        List<String> words = (List<String>) request.get("words");
+        if (words != null && !words.isEmpty()) {
+            return sensitiveWordService.importWords(words);
+        }
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("success", false);
+        result.put("message", "参数错误");
+        return result;
+    }
 }
