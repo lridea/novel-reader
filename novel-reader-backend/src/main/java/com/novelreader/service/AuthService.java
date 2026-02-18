@@ -72,18 +72,21 @@ public class AuthService {
     }
 
     /**
-     * 用户登录
+     * 用户登录（支持用户名或邮箱）
      */
-    public Map<String, Object> login(String email, String password) {
-        log.info("用户登录: email={}", email);
+    public Map<String, Object> login(String account, String password) {
+        log.info("用户登录: account={}", account);
 
         Map<String, Object> result = new HashMap<>();
 
-        // 查找用户
-        Optional<User> userOpt = userRepository.findByEmail(email);
+        // 查找用户（支持用户名或邮箱）
+        Optional<User> userOpt = userRepository.findByEmail(account);
+        if (userOpt.isEmpty()) {
+            userOpt = userRepository.findByUsername(account);
+        }
         if (userOpt.isEmpty()) {
             result.put("success", false);
-            result.put("message", "邮箱或密码错误");
+            result.put("message", "用户名或密码错误");
             return result;
         }
 
@@ -99,7 +102,7 @@ public class AuthService {
         // 验证密码
         if (!passwordEncoder.matches(password, user.getPassword())) {
             result.put("success", false);
-            result.put("message", "邮箱或密码错误");
+            result.put("message", "用户名或密码错误");
             return result;
         }
 

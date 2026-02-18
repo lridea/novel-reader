@@ -1,6 +1,5 @@
 package com.novelreader.controller;
 
-import com.novelreader.entity.User;
 import com.novelreader.service.CommentService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,8 +36,10 @@ public class CommentController {
 
         Long userId = null;
         if (authentication != null && authentication.isAuthenticated()) {
-            User user = (User) authentication.getPrincipal();
-            userId = user.getId();
+            Object principal = authentication.getPrincipal();
+            if (principal instanceof Long) {
+                userId = (Long) principal;
+            }
         }
 
         return commentService.getComments(novelId, page, size, floor, parentId, userId);
@@ -54,7 +55,6 @@ public class CommentController {
     ) {
         log.info("添加评论: {}", request);
 
-        // 检查用户是否登录
         if (authentication == null || !authentication.isAuthenticated()) {
             Map<String, Object> result = new HashMap<>();
             result.put("success", false);
@@ -62,14 +62,21 @@ public class CommentController {
             return result;
         }
 
-        User user = (User) authentication.getPrincipal();
+        Object principal = authentication.getPrincipal();
+        if (!(principal instanceof Long)) {
+            Map<String, Object> result = new HashMap<>();
+            result.put("success", false);
+            result.put("message", "请先登录");
+            return result;
+        }
+        Long userId = (Long) principal;
 
         Long novelId = ((Number) request.get("novelId")).longValue();
         Long parentId = request.get("parentId") != null ? ((Number) request.get("parentId")).longValue() : null;
         Integer floor = request.get("floor") != null ? ((Number) request.get("floor")).intValue() : 1;
         String content = (String) request.get("content");
 
-        return commentService.addComment(user.getId(), novelId, parentId, floor, content);
+        return commentService.addComment(userId, novelId, parentId, floor, content);
     }
 
     /**
@@ -82,7 +89,6 @@ public class CommentController {
     ) {
         log.info("点赞评论: commentId={}", id);
 
-        // 检查用户是否登录
         if (authentication == null || !authentication.isAuthenticated()) {
             Map<String, Object> result = new HashMap<>();
             result.put("success", false);
@@ -90,9 +96,16 @@ public class CommentController {
             return result;
         }
 
-        User user = (User) authentication.getPrincipal();
+        Object principal = authentication.getPrincipal();
+        if (!(principal instanceof Long)) {
+            Map<String, Object> result = new HashMap<>();
+            result.put("success", false);
+            result.put("message", "请先登录");
+            return result;
+        }
+        Long userId = (Long) principal;
 
-        return commentService.likeComment(user.getId(), id);
+        return commentService.likeComment(userId, id);
     }
 
     /**
@@ -105,7 +118,6 @@ public class CommentController {
     ) {
         log.info("取消点赞评论: commentId={}", id);
 
-        // 检查用户是否登录
         if (authentication == null || !authentication.isAuthenticated()) {
             Map<String, Object> result = new HashMap<>();
             result.put("success", false);
@@ -113,8 +125,15 @@ public class CommentController {
             return result;
         }
 
-        User user = (User) authentication.getPrincipal();
+        Object principal = authentication.getPrincipal();
+        if (!(principal instanceof Long)) {
+            Map<String, Object> result = new HashMap<>();
+            result.put("success", false);
+            result.put("message", "请先登录");
+            return result;
+        }
+        Long userId = (Long) principal;
 
-        return commentService.unlikeComment(user.getId(), id);
+        return commentService.unlikeComment(userId, id);
     }
 }

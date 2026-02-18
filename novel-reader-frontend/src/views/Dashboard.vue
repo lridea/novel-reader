@@ -125,8 +125,7 @@ const stats = ref({
 const platformStats = ref([
   { platform: 'ciweimao', name: '刺猬猫', count: 0, percentage: 0, color: '#409eff' },
   { platform: 'sf', name: 'SF轻小说', count: 0, percentage: 0, color: '#67c23a' },
-  { platform: 'ciyuanji', name: '次元姬', count: 0, percentage: 0, color: '#e6a23c' },
-  { platform: 'qidian', name: '起点', count: 0, percentage: 0, color: '#f56c6c' }
+  { platform: 'ciyuanji', name: '次元姬', count: 0, percentage: 0, color: '#e6a23c' }
 ])
 
 const platforms = ref([])

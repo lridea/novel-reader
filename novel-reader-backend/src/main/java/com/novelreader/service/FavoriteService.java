@@ -171,7 +171,7 @@ public class FavoriteService {
      */
     private Map<String, Object> toFavoriteInfo(Favorite favorite) {
         Map<String, Object> favoriteInfo = new HashMap<>();
-        favoriteInfo.put("id", favorite.getId());
+        favoriteInfo.put("id", favorite.getNovelId());
         favoriteInfo.put("novelId", favorite.getNovelId());
         favoriteInfo.put("platform", favorite.getPlatform());
         favoriteInfo.put("platformNovelId", favorite.getPlatformNovelId());
@@ -182,16 +182,14 @@ public class FavoriteService {
         favoriteInfo.put("createdAt", favorite.getCreatedAt());
         favoriteInfo.put("updatedAt", favorite.getUpdatedAt());
 
-        // 获取小说详情
         Optional<Novel> novelOpt = novelRepository.findById(favorite.getNovelId());
         if (novelOpt.isPresent()) {
             Novel novel = novelOpt.get();
-            Map<String, Object> novelInfo = new HashMap<>();
-            novelInfo.put("title", novel.getTitle());
-            novelInfo.put("author", novel.getAuthor());
-            novelInfo.put("coverUrl", novel.getCoverUrl());
-            novelInfo.put("description", novel.getDescription());
-            favoriteInfo.put("novel", novelInfo);
+            favoriteInfo.put("title", novel.getTitle());
+            favoriteInfo.put("author", novel.getAuthor());
+            favoriteInfo.put("coverUrl", novel.getCoverUrl());
+            favoriteInfo.put("description", novel.getDescription());
+            favoriteInfo.put("status", novel.getStatus());
         }
 
         return favoriteInfo;

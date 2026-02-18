@@ -72,7 +72,12 @@ public class SecurityConfig {
                         // 公开接口（无需认证）
                         .requestMatchers(
                                 "/api/crawler/health",
-                                "/api/crawler/novels/**"
+                                "/api/crawler/novels/**",
+                                "/api/novels/page",
+                                "/api/novels/tags",
+                                "/api/novels/{id}",
+                                "/api/comments/novel/**",
+                                "/api/favorites/check-batch"
                         ).permitAll()
 
                         // 认证接口（无需认证）
@@ -92,14 +97,14 @@ public class SecurityConfig {
                                 "/api/crawler/tasks/**"
                         ).hasRole("ADMIN")
 
-                        // 用户相关接口（需要USER角色）
+                        // 用户相关接口（需要USER或ADMIN角色）
                         .requestMatchers(
                                 "/api/favorites/**",
                                 "/api/categories/**",
                                 "/api/users/**",
                                 "/api/auth/me",
                                 "/api/auth/logout"
-                        ).hasRole("USER")
+                        ).hasAnyRole("USER", "ADMIN")
 
                         // 其他所有请求需要认证
                         .anyRequest().authenticated()

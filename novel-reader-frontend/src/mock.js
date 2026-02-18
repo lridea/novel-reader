@@ -198,24 +198,6 @@ const MOCK_CONFIGS = [
     lastErrorMessage: null,
     createdAt: '2026-02-15T10:00:00',
     updatedAt: '2026-02-18T10:00:00'
-  },
-  {
-    id: 4,
-    platform: 'qidian',
-    baseUrl: 'https://www.qidian.com',
-    enabled: 0,
-    tags: '["武侠", "仙侠", "玄幻", "都市"]',
-    crawlInterval: 7200,
-    maxRetry: 3,
-    lastCrawlTime: null,
-    lastSuccessCrawlTime: null,
-    isRunning: 0,
-    runningTaskId: null,
-    crawlCount: 0,
-    failCount: 0,
-    lastErrorMessage: null,
-    createdAt: '2026-02-15T10:00:00',
-    updatedAt: '2026-02-18T10:00:00'
   }
 ]
 
@@ -435,11 +417,6 @@ export const mockApi = {
       size,
       number: page
     }
-  },
-
-  // 根据平台获取小说（返回数组，与后端一致）
-  async getNovelsByPlatform(platform) {
-    return MOCK_NOVELS.filter(n => n.platform === platform)
   },
 
   // 获取所有标签

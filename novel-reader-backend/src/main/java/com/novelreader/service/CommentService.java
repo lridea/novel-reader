@@ -173,6 +173,11 @@ public class CommentService {
         commentInfo.put("replyCount", comment.getReplyCount());
         commentInfo.put("createdAt", comment.getCreatedAt());
 
+        // 如果是顶层评论，初始化replies为空数组
+        if (comment.getFloor() != null && comment.getFloor() == 1) {
+            commentInfo.put("replies", new ArrayList<>());
+        }
+
         // 获取用户信息
         Optional<com.novelreader.entity.User> userOpt = userRepository.findById(comment.getUserId());
         if (userOpt.isPresent()) {

@@ -3,14 +3,11 @@ package com.novelreader.controller;
 import com.novelreader.crawler.BaseCrawler;
 import com.novelreader.crawler.model.CrawlResult;
 import com.novelreader.entity.CrawlerConfig;
-import com.novelreader.entity.Favorite;
 import com.novelreader.entity.Novel;
-import com.novelreader.repository.FavoriteRepository;
 import com.novelreader.repository.NovelRepository;
 import com.novelreader.service.CrawlerScheduler;
 import com.novelreader.service.CrawlerConfigService;
 import com.novelreader.service.CrawlerTaskManager;
-import com.novelreader.service.NovelService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -44,13 +41,7 @@ public class CrawlerController {
     private CrawlerTaskManager crawlerTaskManager;
 
     @Autowired
-    private NovelService novelService;
-
-    @Autowired
     private NovelRepository novelRepository;
-
-    @Autowired
-    private FavoriteRepository favoriteRepository;
 
     @Autowired
     private List<BaseCrawler> crawlers;
@@ -200,46 +191,24 @@ public class CrawlerController {
     }
 
     /**
-     * 获取所有小说（旧接口，兼容）
-     */
-    @GetMapping("/novels")
-    @PreAuthorize("hasRole('ADMIN')")
-    public List<Novel> getAllNovels() {
-        return novelService.findAll();
-    }
-
-    /**
-     * 分页查询小说（新接口，支持筛选）
+     * 分页查询小说（支持筛选）
      */
     @GetMapping("/novels/page")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Map<String, Object>> getNovelsPage(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
-            @RequestParam(required = false) String platform,
             @RequestParam(required = false) String keyword,
-            @RequestParam(required = false) Integer status,
-            @RequestParam(required = false) String tag,
-            @RequestParam(required = false) String wordCountMin,
-            @RequestParam(required = false) String wordCountMax,
-            @RequestParam(required = false) Integer favoriteCountMin,
-            @RequestParam(required = false) Integer favoriteCountMax,
+            @RequestParam(defaultValue = "0") Integer minDislikeCount,
             @RequestParam(defaultValue = "updateTime") String sortBy,
             @RequestParam(defaultValue = "desc") String sortOrder) {
 
-        log.info("分页查询小说: page={}, size={}, platform={}, keyword={}, status={}, tag={}, wordCountMin={}, wordCountMax={}, favoriteCountMin={}, favoriteCountMax={}, sortBy={}, sortOrder={}",
-                page, size, platform, keyword, status, tag, wordCountMin, wordCountMax, favoriteCountMin, favoriteCountMax, sortBy, sortOrder);
+        log.info("管理员分页查询小说: page={}, size={}, keyword={}, minDislikeCount={}, sortBy={}, sortOrder={}",
+                page, size, keyword, minDislikeCount, sortBy, sortOrder);
 
-        // 处理字数范围参数（10w, 30w, 50w, 100w, 200w）
-        Long minWordCount = parseWordCount(wordCountMin);
-        Long maxWordCount = parseWordCount(wordCountMax);
-
-        // 处理排序
         Sort sort;
-        if ("favoriteCount".equalsIgnoreCase(sortBy)) {
-            sort = Sort.by("asc".equalsIgnoreCase(sortOrder) ? Sort.Direction.ASC : Sort.Direction.DESC, "favoriteCount");
-        } else if ("wordCount".equalsIgnoreCase(sortBy)) {
-            sort = Sort.by("asc".equalsIgnoreCase(sortOrder) ? Sort.Direction.ASC : Sort.Direction.DESC, "wordCount");
+        if ("dislikeCount".equalsIgnoreCase(sortBy)) {
+            sort = Sort.by("asc".equalsIgnoreCase(sortOrder) ? Sort.Direction.ASC : Sort.Direction.DESC, "dislikeCount");
         } else {
             sort = Sort.by("asc".equalsIgnoreCase(sortOrder) ? Sort.Direction.ASC : Sort.Direction.DESC, "latestUpdateTime");
         }
@@ -247,41 +216,11 @@ public class CrawlerController {
         Pageable pageable = PageRequest.of(page, size, sort);
         Page<Novel> novelPage;
 
-        // 使用复杂查询方法
-        novelPage = novelRepository.searchNovels(
-                platform,
-                keyword,
-                status,
-                tag,
-                minWordCount,
-                maxWordCount,
-                favoriteCountMin,
-                favoriteCountMax,
-                pageable
-        );
-
-        // TODO: 获取当前用户ID，如果已登录，批量查询收藏状态并设置isFavorite
-        // Long userId = getCurrentUserId();
-        // if (userId != null) {
-        //     List<Long> novelIds = novelPage.getContent().stream()
-        //             .map(Novel::getId)
-        //             .collect(Collectors.toList());
-        //     
-        //     List<Favorite> favorites = favoriteRepository.findByUserIdAndNovelIdIn(userId, novelIds);
-        //     Map<Long, Boolean> favoriteMap = favorites.stream()
-        //             .collect(Collectors.toMap(
-        //                     Favorite::getNovelId,
-        //                     f -> true
-        //             ));
-        //     
-        //     // 设置每本小说的收藏状态
-        //     novelPage.getContent().forEach(novel -> {
-        //         novel.setIsFavorite(favoriteMap.getOrDefault(novel.getId(), false));
-        //     });
-        // } else {
-        //     // 未登录，设置isFavorite为null
-        //     novelPage.getContent().forEach(novel -> novel.setIsFavorite(null));
-        // }
+        if (keyword != null && !keyword.isEmpty()) {
+            novelPage = novelRepository.searchByKeywordAndMinDislikeCount(keyword, minDislikeCount, pageable);
+        } else {
+            novelPage = novelRepository.searchByMinDislikeCount(minDislikeCount, pageable);
+        }
 
         Map<String, Object> result = new HashMap<>();
         result.put("content", novelPage.getContent());
@@ -291,48 +230,6 @@ public class CrawlerController {
         result.put("number", novelPage.getNumber());
 
         return ResponseEntity.ok(result);
-    }
-
-    /**
-     * 解析字数范围参数
-     *
-     * @param wordCountStr 字数字符串（全部/10w/30w/50w/100w/200w）
-     * @return 字数（Long）
-     */
-    private Long parseWordCount(String wordCountStr) {
-        if (wordCountStr == null || wordCountStr.isEmpty() || "全部".equals(wordCountStr)) {
-            return null;
-        }
-
-        try {
-            String lower = wordCountStr.toLowerCase();
-            if (lower.equals("10w") || lower.equals("100000")) {
-                return 100000L;
-            } else if (lower.equals("30w") || lower.equals("300000")) {
-                return 300000L;
-            } else if (lower.equals("50w") || lower.equals("500000")) {
-                return 500000L;
-            } else if (lower.equals("100w") || lower.equals("1000000")) {
-                return 1000000L;
-            } else if (lower.equals("200w") || lower.equals("2000000")) {
-                return 2000000L;
-            } else {
-                // 尝试直接解析数字
-                return Long.parseLong(wordCountStr);
-            }
-        } catch (NumberFormatException e) {
-            log.warn("解析字数参数失败: {}", wordCountStr);
-            return null;
-        }
-    }
-
-    /**
-     * 根据平台获取小说（旧接口，兼容）
-     */
-    @GetMapping("/novels/platform/{platform}")
-    @PreAuthorize("hasRole('ADMIN')")
-    public List<Novel> getNovelsByPlatform(@PathVariable String platform) {
-        return novelService.findByPlatform(platform);
     }
 
     /**

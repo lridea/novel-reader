@@ -52,10 +52,13 @@ public class AuthController {
      */
     @PostMapping("/login")
     public Map<String, Object> login(@RequestBody Map<String, String> request) {
+        String username = request.get("username");
         String email = request.get("email");
         String password = request.get("password");
 
-        if (email == null || email.isEmpty() ||
+        String loginAccount = (username != null && !username.isEmpty()) ? username : email;
+
+        if (loginAccount == null || loginAccount.isEmpty() ||
             password == null || password.isEmpty()) {
             Map<String, Object> error = new HashMap<>();
             error.put("success", false);
@@ -63,7 +66,7 @@ public class AuthController {
             return error;
         }
 
-        return authService.login(email, password);
+        return authService.login(loginAccount, password);
     }
 
     /**

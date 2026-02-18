@@ -1,10 +1,19 @@
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
 import router from '../router'
-import mockApi from '../mock'
 
 // 使用Mock数据开关（开发时设为true，生产时设为false）
-const USE_MOCK = true
+const USE_MOCK = false
+
+// 条件导入 mockApi
+let mockApi = null
+if (USE_MOCK) {
+  try {
+    mockApi = require('../mock').mockApi
+  } catch (e) {
+    console.warn('Mock module not available')
+  }
+}
 
 const api = axios.create({
   baseURL: '/api',
@@ -75,13 +84,20 @@ export const crawlerApi = {
     return USE_MOCK ? mockApi.getNovels(params) : api.get('/crawler/novels/page', { params })
   },
 
-  getNovelsByPlatform(platform) {
-    return USE_MOCK ? mockApi.getNovelsByPlatform(platform) : api.get(`/crawler/novels/platform/${platform}`)
+  getNovelsPublic(params) {
+    return USE_MOCK ? mockApi.getNovels(params) : api.get('/novels/page', { params })
   },
 
-  // 标签相关API
+  getNovelById(id) {
+    return USE_MOCK ? mockApi.getNovel(id) : api.get(`/novels/${id}`)
+  },
+
   getTags() {
     return USE_MOCK ? mockApi.getTags() : api.get('/crawler/novels/tags')
+  },
+
+  getTagsPublic() {
+    return USE_MOCK ? mockApi.getTags() : api.get('/novels/tags')
   },
 
   getTagsByPlatform(platform) {
@@ -264,6 +280,28 @@ export const crawlerApi = {
   // 删除标签（用户）
   deleteTag(data) {
     return USE_MOCK ? mockApi.deleteTag(data) : api.delete('/tags/user', { data })
+  }
+}
+
+export const favoriteApi = {
+  addFavorite(data) {
+    return USE_MOCK ? mockApi.addFavorite(data) : api.post('/favorites', data)
+  },
+
+  removeFavorite(novelId) {
+    return USE_MOCK ? mockApi.removeFavorite(novelId) : api.delete(`/favorites/${novelId}`)
+  },
+
+  getFavorites(params) {
+    return USE_MOCK ? mockApi.getFavorites(params) : api.get('/favorites', { params })
+  },
+
+  updateFavoriteNote(novelId, note) {
+    return USE_MOCK ? mockApi.updateFavoriteNote(novelId, note) : api.put(`/favorites/${novelId}/note`, { note })
+  },
+
+  checkBatchFavorites(novelIds) {
+    return USE_MOCK ? mockApi.checkBatchFavorites(novelIds) : api.get(`/favorites/check-batch`, { params: { novelIds } })
   }
 }
 

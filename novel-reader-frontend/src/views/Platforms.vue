@@ -141,6 +141,7 @@ const configs = ref([])
 const newTags = reactive({})
 const testDialogVisible = ref(false)
 const testResult = ref({})
+const isDataLoading = ref(true)
 
 const getPlatformName = (platform) => {
   const names = {
@@ -173,6 +174,7 @@ const parseTags = (tagsJson) => {
 
 const loadData = async () => {
   loading.value = true
+  isDataLoading.value = true
   try {
     const data = await crawlerApi.getConfigs()
     configs.value = (data || []).map(c => ({
@@ -200,10 +202,12 @@ const loadData = async () => {
     console.error('加载配置失败:', error)
   } finally {
     loading.value = false
+    isDataLoading.value = false
   }
 }
 
 const handleEnabledChange = (config) => {
+  if (isDataLoading.value) return
   ElMessage.info(`${getPlatformName(config.platform)} ${config.enabled ? '已启用' : '已禁用'}`)
 }
 

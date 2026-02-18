@@ -117,7 +117,15 @@ public class FavoriteController {
             return result;
         }
 
-        Long userId = (Long) authentication.getPrincipal();
+        Object principal = authentication.getPrincipal();
+        if (!(principal instanceof Long)) {
+            Map<String, Object> result = new java.util.HashMap<>();
+            result.put("success", true);
+            result.put("favorites", new java.util.HashMap<>());
+            return result;
+        }
+
+        Long userId = (Long) principal;
         return favoriteService.checkBatchFavorites(userId, novelIds);
     }
 }
