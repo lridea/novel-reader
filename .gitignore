@@ -1,3 +1,23 @@
 docs/novel-reader-design/次元姬/
 docs/novel-reader-design/刺猬猫/
 docs/novel-reader-design/SF轻小说/
+
+# Node modules
+node_modules/
+
+# IDE
+.vscode/
+.idea/
+*.iml
+
+# Logs
+*.log
+npm-debug.log*
+
+# Build output
+dist/
+target/
+
+# OS
+.DS_Store
+Thumbs.db

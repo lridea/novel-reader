@@ -6,7 +6,7 @@
       </template>
     </el-page-header>
 
-    <el-card shadow="hover" style="margin-top: 20px;">
+    <el-card shadow="hover" style="margin-top: 20px;" v-loading="loading">
       <template #header>
         <span>基本信息</span>
       </template>
@@ -20,9 +20,9 @@
             {{ getStatusText(task.status) }}
           </el-tag>
         </el-descriptions-item>
-        <el-descriptions-item label="开始时间">{{ task.startTime }}</el-descriptions-item>
-        <el-descriptions-item label="结束时间">{{ task.endTime || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="执行时长">{{ task.duration || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="开始时间">{{ formatTime(task.startTime) }}</el-descriptions-item>
+        <el-descriptions-item label="结束时间">{{ formatTime(task.endTime) || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="执行时长">{{ calculateDuration(task.startTime, task.endTime) || '-' }}</el-descriptions-item>
         <el-descriptions-item label="总数">{{ task.totalCount }}</el-descriptions-item>
         <el-descriptions-item label="成功">
           <span style="color: #67c23a;">{{ task.successCount }}</span>
@@ -33,7 +33,7 @@
       </el-descriptions>
     </el-card>
 
-    <el-card shadow="hover" style="margin-top: 20px;">
+    <el-card shadow="hover" style="margin-top: 20px;" v-loading="loading">
       <template #header>
         <span>执行日志</span>
       </template>
@@ -47,32 +47,24 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
+import { crawlerApi } from '../api'
 
 const route = useRoute()
 const router = useRouter()
+const loading = ref(false)
 
 const task = ref({
-  id: 1,
-  platform: 'ciweimao',
-  status: 'SUCCESS',
-  startTime: '2026-02-17 12:00:00',
-  endTime: '2026-02-17 12:30:00',
-  duration: '30分钟',
-  totalCount: 500,
-  successCount: 480,
-  failCount: 20,
-  logs: `2026-02-17 12:00:00 [INFO] 开始执行爬虫任务
-2026-02-17 12:00:05 [INFO] 加载平台配置
-2026-02-17 12:00:10 [INFO] 标签：玄幻, 修仙, 都市, 系统
-2026-02-17 12:00:15 [INFO] 解析小说列表...
-2026-02-17 12:00:20 [INFO] 抓取到100本小说
-2026-02-17 12:00:25 [INFO] 保存到数据库...
-2026-02-17 12:00:30 [INFO] 处理小说: 修仙从系统开始
-2026-02-17 12:00:35 [INFO] 首次抓取，获取前3章内容
-2026-02-17 12:00:40 [INFO] 调用AI生成概括...
-2026-02-17 12:00:50 [INFO] AI概括生成成功
-...
-2026-02-17 12:30:00 [INFO] 爬虫任务完成`
+  id: null,
+  platform: '',
+  status: '',
+  startTime: '',
+  endTime: '',
+  duration: '',
+  totalCount: 0,
+  successCount: 0,
+  failCount: 0,
+  logs: ''
 })
 
 const getPlatformName = (platform) => {
@@ -105,13 +97,56 @@ const getStatusText = (status) => {
   return texts[status] || status
 }
 
+const formatTime = (time) => {
+  if (!time) return ''
+  const date = new Date(time)
+  return date.toLocaleString('zh-CN', { hour12: false })
+}
+
+const calculateDuration = (startTime, endTime) => {
+  if (!startTime) return ''
+  const start = new Date(startTime).getTime()
+  const end = endTime ? new Date(endTime).getTime() : Date.now()
+  const diff = end - start
+
+  const hours = Math.floor(diff / 3600000)
+  const minutes = Math.floor((diff % 3600000) / 60000)
+  const seconds = Math.floor((diff % 60000) / 1000)
+
+  if (hours > 0) {
+    return `${hours}小时${minutes}分钟`
+  } else if (minutes > 0) {
+    return `${minutes}分钟${seconds}秒`
+  } else {
+    return `${seconds}秒`
+  }
+}
+
 const goBack = () => {
   router.push('/tasks')
 }
 
+const loadData = async () => {
+  loading.value = true
+  try {
+    const taskId = route.params.id
+    const data = await crawlerApi.getTask(taskId)
+    if (data) {
+      task.value = data
+    } else {
+      ElMessage.error('任务不存在')
+      goBack()
+    }
+  } catch (error) {
+    console.error('加载任务详情失败:', error)
+    ElMessage.error('加载任务详情失败')
+  } finally {
+    loading.value = false
+  }
+}
+
 onMounted(() => {
-  const taskId = route.params.id
-  console.log('加载任务详情:', taskId)
+  loadData()
 })
 </script>
 

@@ -4,12 +4,17 @@ import com.novelreader.crawler.BaseCrawler;
 import com.novelreader.crawler.model.CrawlResult;
 import com.novelreader.entity.CrawlerConfig;
 import com.novelreader.entity.Novel;
+import com.novelreader.repository.NovelRepository;
 import com.novelreader.service.CrawlerScheduler;
 import com.novelreader.service.CrawlerConfigService;
 import com.novelreader.service.CrawlerTaskManager;
 import com.novelreader.service.NovelService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -34,6 +39,9 @@ public class CrawlerController {
 
     @Autowired
     private NovelService novelService;
+
+    @Autowired
+    private NovelRepository novelRepository;
 
     @Autowired
     private List<BaseCrawler> crawlers;
@@ -179,7 +187,7 @@ public class CrawlerController {
     }
 
     /**
-     * 获取所有小说
+     * 获取所有小说（旧接口，兼容）
      */
     @GetMapping("/novels")
     public List<Novel> getAllNovels() {
@@ -187,7 +195,48 @@ public class CrawlerController {
     }
 
     /**
-     * 根据平台获取小说
+     * 分页查询小说（新接口，支持筛选）
+     */
+    @GetMapping("/novels/page")
+    public ResponseEntity<Map<String, Object>> getNovelsPage(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String platform,
+            @RequestParam(required = false) String keyword) {
+
+        log.info("分页查询小说: page={}, size={}, platform={}, keyword={}", page, size, platform, keyword);
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "latestUpdateTime"));
+        Page<Novel> novelPage;
+
+        if (platform != null && !platform.isEmpty()) {
+            if (keyword != null && !keyword.isEmpty()) {
+                // 平台 + 关键词
+                novelPage = novelRepository.searchByPlatformAndKeyword(platform, keyword, pageable);
+            } else {
+                // 仅平台
+                novelPage = novelRepository.findByPlatformAndDeletedOrderByLatestUpdateTimeDesc(platform, 0, pageable);
+            }
+        } else if (keyword != null && !keyword.isEmpty()) {
+            // 仅关键词
+            novelPage = novelRepository.searchByKeyword(keyword, pageable);
+        } else {
+            // 全部
+            novelPage = novelRepository.findByDeletedOrderByLatestUpdateTimeDesc(0, pageable);
+        }
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("content", novelPage.getContent());
+        result.put("totalElements", novelPage.getTotalElements());
+        result.put("totalPages", novelPage.getTotalPages());
+        result.put("size", novelPage.getSize());
+        result.put("number", novelPage.getNumber());
+
+        return ResponseEntity.ok(result);
+    }
+
+    /**
+     * 根据平台获取小说（旧接口，兼容）
      */
     @GetMapping("/novels/platform/{platform}")
     public List<Novel> getNovelsByPlatform(@PathVariable String platform) {
