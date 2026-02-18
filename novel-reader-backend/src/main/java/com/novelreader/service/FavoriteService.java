@@ -14,8 +14,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * 收藏服务
@@ -69,9 +71,14 @@ public class FavoriteService {
 
         Favorite savedFavorite = favoriteRepository.save(favorite);
 
+        // 更新小说的收藏数
+        novel.setFavoriteCount(novel.getFavoriteCount() + 1);
+        novelRepository.save(novel);
+
         result.put("success", true);
         result.put("message", "收藏成功");
         result.put("favorite", toFavoriteInfo(savedFavorite));
+        result.put("novelFavoriteCount", novel.getFavoriteCount());
 
         return result;
     }
@@ -90,6 +97,17 @@ public class FavoriteService {
             result.put("success", false);
             result.put("message", "未收藏该小说");
             return result;
+        }
+
+        // 更新小说的收藏数
+        Optional<Novel> novelOpt = novelRepository.findById(novelId);
+        if (novelOpt.isPresent()) {
+            Novel novel = novelOpt.get();
+            if (novel.getFavoriteCount() > 0) {
+                novel.setFavoriteCount(novel.getFavoriteCount() - 1);
+                novelRepository.save(novel);
+            }
+            result.put("novelFavoriteCount", novel.getFavoriteCount());
         }
 
         // 删除收藏
@@ -179,5 +197,42 @@ public class FavoriteService {
         }
 
         return favoriteInfo;
+    }
+
+    /**
+     * 批量查询收藏状态
+     */
+    public Map<String, Object> checkBatchFavorites(Long userId, String novelIds) {
+        log.info("批量查询收藏状态: userId={}, novelIds={}", userId, novelIds);
+
+        Map<String, Object> result = new HashMap<>();
+
+        // 解析novelIds（逗号分隔）
+        List<Long> novelIdList = List.of(novelIds.split(","))
+                .stream()
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .map(Long::valueOf)
+                .collect(Collectors.toList());
+
+        // 批量查询收藏状态
+        List<Favorite> favorites = favoriteRepository.findByUserIdAndNovelIdIn(userId, novelIdList);
+
+        // 转换为Map
+        Map<String, Boolean> favoriteMap = favorites.stream()
+                .collect(Collectors.toMap(
+                        f -> f.getNovelId().toString(),
+                        f -> true
+                ));
+
+        // 填充未收藏的小说
+        for (Long novelId : novelIdList) {
+            favoriteMap.putIfAbsent(novelId.toString(), false);
+        }
+
+        result.put("success", true);
+        result.put("favorites", favoriteMap);
+
+        return result;
     }
 }

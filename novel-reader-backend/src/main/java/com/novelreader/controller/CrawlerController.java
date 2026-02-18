@@ -3,7 +3,9 @@ package com.novelreader.controller;
 import com.novelreader.crawler.BaseCrawler;
 import com.novelreader.crawler.model.CrawlResult;
 import com.novelreader.entity.CrawlerConfig;
+import com.novelreader.entity.Favorite;
 import com.novelreader.entity.Novel;
+import com.novelreader.repository.FavoriteRepository;
 import com.novelreader.repository.NovelRepository;
 import com.novelreader.service.CrawlerScheduler;
 import com.novelreader.service.CrawlerConfigService;
@@ -42,6 +44,9 @@ public class CrawlerController {
 
     @Autowired
     private NovelRepository novelRepository;
+
+    @Autowired
+    private FavoriteRepository favoriteRepository;
 
     @Autowired
     private List<BaseCrawler> crawlers;
@@ -207,11 +212,13 @@ public class CrawlerController {
             @RequestParam(required = false) String tag,
             @RequestParam(required = false) String wordCountMin,
             @RequestParam(required = false) String wordCountMax,
+            @RequestParam(required = false) Integer favoriteCountMin,
+            @RequestParam(required = false) Integer favoriteCountMax,
             @RequestParam(defaultValue = "updateTime") String sortBy,
             @RequestParam(defaultValue = "desc") String sortOrder) {
 
-        log.info("分页查询小说: page={}, size={}, platform={}, keyword={}, status={}, tag={}, wordCountMin={}, wordCountMax={}, sortBy={}, sortOrder={}",
-                page, size, platform, keyword, status, tag, wordCountMin, wordCountMax, sortBy, sortOrder);
+        log.info("分页查询小说: page={}, size={}, platform={}, keyword={}, status={}, tag={}, wordCountMin={}, wordCountMax={}, favoriteCountMin={}, favoriteCountMax={}, sortBy={}, sortOrder={}",
+                page, size, platform, keyword, status, tag, wordCountMin, wordCountMax, favoriteCountMin, favoriteCountMax, sortBy, sortOrder);
 
         // 处理字数范围参数（10w, 30w, 50w, 100w, 200w）
         Long minWordCount = parseWordCount(wordCountMin);
@@ -219,7 +226,9 @@ public class CrawlerController {
 
         // 处理排序
         Sort sort;
-        if ("wordCount".equalsIgnoreCase(sortBy)) {
+        if ("favoriteCount".equalsIgnoreCase(sortBy)) {
+            sort = Sort.by("asc".equalsIgnoreCase(sortOrder) ? Sort.Direction.ASC : Sort.Direction.DESC, "favoriteCount");
+        } else if ("wordCount".equalsIgnoreCase(sortBy)) {
             sort = Sort.by("asc".equalsIgnoreCase(sortOrder) ? Sort.Direction.ASC : Sort.Direction.DESC, "wordCount");
         } else {
             sort = Sort.by("asc".equalsIgnoreCase(sortOrder) ? Sort.Direction.ASC : Sort.Direction.DESC, "latestUpdateTime");
@@ -236,8 +245,33 @@ public class CrawlerController {
                 tag,
                 minWordCount,
                 maxWordCount,
+                favoriteCountMin,
+                favoriteCountMax,
                 pageable
         );
+
+        // TODO: 获取当前用户ID，如果已登录，批量查询收藏状态并设置isFavorite
+        // Long userId = getCurrentUserId();
+        // if (userId != null) {
+        //     List<Long> novelIds = novelPage.getContent().stream()
+        //             .map(Novel::getId)
+        //             .collect(Collectors.toList());
+        //     
+        //     List<Favorite> favorites = favoriteRepository.findByUserIdAndNovelIdIn(userId, novelIds);
+        //     Map<Long, Boolean> favoriteMap = favorites.stream()
+        //             .collect(Collectors.toMap(
+        //                     Favorite::getNovelId,
+        //                     f -> true
+        //             ));
+        //     
+        //     // 设置每本小说的收藏状态
+        //     novelPage.getContent().forEach(novel -> {
+        //         novel.setIsFavorite(favoriteMap.getOrDefault(novel.getId(), false));
+        //     });
+        // } else {
+        //     // 未登录，设置isFavorite为null
+        //     novelPage.getContent().forEach(novel -> novel.setIsFavorite(null));
+        // }
 
         Map<String, Object> result = new HashMap<>();
         result.put("content", novelPage.getContent());

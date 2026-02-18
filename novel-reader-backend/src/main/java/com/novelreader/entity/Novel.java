@@ -18,7 +18,10 @@ import java.time.LocalDateTime;
     @Index(name = "idx_title", columnList = "title"),
     @Index(name = "idx_author", columnList = "author"),
     @Index(name = "idx_update_time", columnList = "latestUpdateTime"),
-    @Index(name = "idx_status", columnList = "status")
+    @Index(name = "idx_status", columnList = "status"),
+    @Index(name = "idx_favorite_count", columnList = "favoriteCount"),
+    @Index(name = "idx_status_favorite_count", columnList = "status, favoriteCount DESC"),
+    @Index(name = "idx_favorite_count_update_time", columnList = "favoriteCount DESC, latestUpdateTime DESC")
 }, uniqueConstraints = {
     @UniqueConstraint(name = "uk_platform_novel", columnNames = {"platform", "novelId"})
 })
@@ -82,6 +85,12 @@ public class Novel {
     private Long wordCount;
 
     /**
+     * 收藏数
+     */
+    @ColumnDefault("0")
+    private Integer favoriteCount = 0;
+
+    /**
      * 最新更新时间
      */
     private LocalDateTime latestUpdateTime;
@@ -128,6 +137,12 @@ public class Novel {
     @UpdateTimestamp
     @Column(nullable = false)
     private LocalDateTime updatedAt;
+
+    /**
+     * 是否被当前用户收藏（DTO字段，不存储到数据库）
+     */
+    @Transient
+    private Boolean isFavorite;
 
     @Override
     public boolean equals(Object o) {

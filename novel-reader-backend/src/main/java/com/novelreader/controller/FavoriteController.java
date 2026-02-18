@@ -102,4 +102,22 @@ public class FavoriteController {
 
         return favoriteService.updateFavoriteNote(userId, novelId, note);
     }
+
+    /**
+     * 批量查询收藏状态
+     */
+    @GetMapping("/check-batch")
+    public Map<String, Object> checkBatchFavorites(@RequestParam String novelIds) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        if (authentication == null || !authentication.isAuthenticated()) {
+            Map<String, Object> result = new java.util.HashMap<>();
+            result.put("success", true);
+            result.put("favorites", new java.util.HashMap<>());
+            return result;
+        }
+
+        Long userId = (Long) authentication.getPrincipal();
+        return favoriteService.checkBatchFavorites(userId, novelIds);
+    }
 }

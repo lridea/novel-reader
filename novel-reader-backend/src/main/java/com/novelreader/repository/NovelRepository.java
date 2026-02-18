@@ -55,7 +55,7 @@ public interface NovelRepository extends JpaRepository<Novel, Long> {
 
     /**
      * 复杂查询（支持多条件组合）
-     * 支持平台、关键词、状态、标签、字数范围、排序
+     * 支持平台、关键词、状态、标签、字数范围、收藏数范围、排序
      */
     @Query("SELECT n FROM Novel n WHERE n.deleted = 0 " +
            "AND (:platform IS NULL OR n.platform = :platform) " +
@@ -63,7 +63,9 @@ public interface NovelRepository extends JpaRepository<Novel, Long> {
            "AND (:status IS NULL OR n.status = :status) " +
            "AND (:tag IS NULL OR n.tags LIKE %:tag%) " +
            "AND (:wordCountMin IS NULL OR n.wordCount >= :wordCountMin) " +
-           "AND (:wordCountMax IS NULL OR n.wordCount <= :wordCountMax)")
+           "AND (:wordCountMax IS NULL OR n.wordCount <= :wordCountMax) " +
+           "AND (:favoriteCountMin IS NULL OR n.favoriteCount >= :favoriteCountMin) " +
+           "AND (:favoriteCountMax IS NULL OR n.favoriteCount <= :favoriteCountMax)")
     Page<Novel> searchNovels(
             @Param("platform") String platform,
             @Param("keyword") String keyword,
@@ -71,6 +73,8 @@ public interface NovelRepository extends JpaRepository<Novel, Long> {
             @Param("tag") String tag,
             @Param("wordCountMin") Long wordCountMin,
             @Param("wordCountMax") Long wordCountMax,
+            @Param("favoriteCountMin") Integer favoriteCountMin,
+            @Param("favoriteCountMax") Integer favoriteCountMax,
             Pageable pageable);
 
     /**
