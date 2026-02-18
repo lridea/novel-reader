@@ -1176,3 +1176,285 @@ global.MOCK_SENSITIVE_WORDS = global.MOCK_SENSITIVE_WORDS || [
 const MOCK_SENSITIVE_WORDS = global.MOCK_SENSITIVE_WORDS
 
 export default mockApi
+
+  // 用户标签API
+  async addTag(data) {
+    await delay()
+    const { novelId, tag } = data
+
+    // 初始化Mock标签审核数据
+    if (!global.MOCK_TAG_AUDITS) {
+      global.MOCK_TAG_AUDITS = []
+    }
+    const MOCK_TAG_AUDITS = global.MOCK_TAG_AUDITS
+
+    // 检查书籍是否存在
+    const novel = MOCK_NOVELS.find(n => n.id === novelId)
+    if (!novel) {
+      throw new Error('书籍不存在')
+    }
+
+    // 检查是否已添加相同标签
+    if (MOCK_TAG_AUDITS.some(a => a.novelId === novelId && a.tag === tag)) {
+      return {
+        success: false,
+        message: '已添加该标签，请勿重复添加'
+      }
+    }
+
+    // 创建标签审核记录
+    const tagAudit = {
+      id: Date.now(),
+      novelId,
+      userId: 1,
+      tag,
+      status: 0,
+      createdAt: new Date().toISOString()
+    }
+    MOCK_TAG_AUDITS.push(tagAudit)
+
+    return {
+      success: true,
+      message: '标签提交成功，等待审核'
+    }
+  },
+
+  async getMyTags(params) {
+    await delay()
+    const { page = 0, size = 10, status } = params
+
+    if (!global.MOCK_TAG_AUDITS) {
+      global.MOCK_TAG_AUDITS = []
+    }
+    const MOCK_TAG_AUDITS = global.MOCK_TAG_AUDITS
+
+    let audits = MOCK_TAG_AUDITS
+
+    // 根据状态过滤
+    if (status !== undefined) {
+      audits = audits.filter(a => a.status === status)
+    }
+
+    // 分页
+    const total = audits.length
+    const start = page * size
+    const end = start + size
+    const content = audits.slice(start, end)
+
+    // 添加书名
+    const contentWithNovelTitle = content.map(audit => {
+      const novel = MOCK_NOVELS.find(n => n.id === audit.novelId)
+      return {
+        ...audit,
+        novelTitle: novel ? novel.title : ''
+      }
+    })
+
+    return {
+      success: true,
+      content: contentWithNovelTitle,
+      totalElements: total,
+      totalPages: Math.ceil(total / size),
+      size,
+      number: page
+    }
+  },
+
+  async getPendingAudits(params) {
+    await delay()
+    const { page = 0, size = 10, status } = params
+
+    if (!global.MOCK_TAG_AUDITS) {
+      global.MOCK_TAG_AUDITS = []
+    }
+    const MOCK_TAG_AUDITS = global.MOCK_TAG_AUDITS
+
+    let audits = MOCK_TAG_AUDITS
+
+    // 根据状态过滤
+    if (status !== undefined) {
+      audits = audits.filter(a => a.status === status)
+    } else {
+      audits = audits.filter(a => a.status === 0)
+    }
+
+    // 分页
+    const total = audits.length
+    const start = page * size
+    const end = start + size
+    const content = audits.slice(start, end)
+
+    // 添加书名
+    const contentWithNovelTitle = content.map(audit => {
+      const novel = MOCK_NOVELS.find(n => n.id === audit.novelId)
+      return {
+        ...audit,
+        novelTitle: novel ? novel.title : '',
+        userId: audit.userId,
+        username: '用户1'
+      }
+    })
+
+    return {
+      success: true,
+      content: contentWithNovelTitle,
+      totalElements: total,
+      totalPages: Math.ceil(total / size),
+      size,
+      number: page
+    }
+  },
+
+  async auditTag(id, data) {
+    await delay()
+    const { status, reason } = data
+
+    if (!global.MOCK_TAG_AUDITS) {
+      global.MOCK_TAG_AUDITS = []
+    }
+    const MOCK_TAG_AUDITS = global.MOCK_TAG_AUDITS
+
+    if (!global.MOCK_USER_TAGS) {
+      global.MOCK_USER_TAGS = []
+    }
+    const MOCK_USER_TAGS = global.MOCK_USER_TAGS
+
+    const auditIndex = MOCK_TAG_AUDITS.findIndex(a => a.id === id)
+    if (auditIndex === -1) {
+      throw new Error('审核记录不存在')
+    }
+
+    const audit = MOCK_TAG_AUDITS[auditIndex]
+
+    if (audit.status !== 0) {
+      return {
+        success: false,
+        message: '该标签已审核'
+      }
+    }
+
+    // 更新审核状态
+    audit.status = status
+    audit.reviewedBy = 1
+    audit.reviewedAt = new Date().toISOString()
+    audit.reason = reason
+
+    // 如果审核通过，创建用户标签记录
+    if (status === 1) {
+      const userTag = {
+        id: Date.now(),
+        userId: audit.userId,
+        novelId: audit.novelId,
+        tag: audit.tag,
+        createdAt: new Date().toISOString()
+      }
+      MOCK_USER_TAGS.push(userTag)
+
+      // 更新书籍的userTags字段
+      const novel = MOCK_NOVELS.find(n => n.id === audit.novelId)
+      if (novel) {
+        if (!novel.userTags) {
+          novel.userTags = []
+        }
+        if (!novel.userTags.includes(audit.tag)) {
+          novel.userTags.push(audit.tag)
+        }
+      }
+    }
+
+    return {
+      success: true,
+      message: '审核成功'
+    }
+  },
+
+  async batchAuditTags(data) {
+    await delay()
+    const { ids, status, reason } = data
+
+    if (!global.MOCK_TAG_AUDITS) {
+      global.MOCK_TAG_AUDITS = []
+    }
+    const MOCK_TAG_AUDITS = global.MOCK_TAG_AUDITS
+
+    if (!global.MOCK_USER_TAGS) {
+      global.MOCK_USER_TAGS = []
+    }
+    const MOCK_USER_TAGS = global.MOCK_USER_TAGS
+
+    let approveCount = 0
+    let rejectCount = 0
+
+    for (const id of ids) {
+      const auditIndex = MOCK_TAG_AUDITS.findIndex(a => a.id === id)
+      if (auditIndex === -1) {
+        continue
+      }
+
+      const audit = MOCK_TAG_AUDITS[auditIndex]
+
+      if (audit.status !== 0) {
+        continue
+      }
+
+      // 更新审核状态
+      audit.status = status
+      audit.reviewedBy = 1
+      audit.reviewedAt = new Date().toISOString()
+      audit.reason = reason
+
+      // 如果审核通过，创建用户标签记录
+      if (status === 1) {
+        const userTag = {
+          id: Date.now(),
+          userId: audit.userId,
+          novelId: audit.novelId,
+          tag: audit.tag,
+          createdAt: new Date().toISOString()
+        }
+        MOCK_USER_TAGS.push(userTag)
+
+        // 更新书籍的userTags字段
+        const novel = MOCK_NOVELS.find(n => n.id === audit.novelId)
+        if (novel) {
+          if (!novel.userTags) {
+            novel.userTags = []
+          }
+          if (!novel.userTags.includes(audit.tag)) {
+            novel.userTags.push(audit.tag)
+          }
+        }
+
+        approveCount++
+      } else {
+        rejectCount++
+      }
+    }
+
+    return {
+      success: true,
+      message: '批量审核成功',
+      approveCount,
+      rejectCount
+    }
+  },
+
+  async getAllUserTags() {
+    await delay()
+
+    if (!global.MOCK_USER_TAGS) {
+      global.MOCK_USER_TAGS = []
+    }
+    const MOCK_USER_TAGS = global.MOCK_USER_TAGS
+
+    const tags = [...new Set(MOCK_USER_TAGS.map(ut => ut.tag))]
+
+    return {
+      success: true,
+      tags
+    }
+  }
+}
+
+global.MOCK_TAG_AUDITS = global.MOCK_TAG_AUDITS || []
+global.MOCK_USER_TAGS = global.MOCK_USER_TAGS || []

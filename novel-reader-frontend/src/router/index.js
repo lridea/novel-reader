@@ -50,6 +50,12 @@ const routes = [
         meta: { title: '书籍管理' }
       },
       {
+        path: 'tag-audit',
+        name: 'TagAudit',
+        component: () => import('../views/TagAudit.vue'),
+        meta: { title: '标签审核' }
+      },
+      {
         path: 'sensitive-words',
         name: 'SensitiveWords',
         component: () => import('../views/SensitiveWords.vue'),

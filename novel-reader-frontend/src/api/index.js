@@ -232,6 +232,33 @@ export const crawlerApi = {
 
   batchDeleteNovels(ids) {
     return USE_MOCK ? mockApi.batchDeleteNovels(ids) : api.delete('/novels/batch', { data: { ids } })
+  },
+
+  // 用户标签API
+  addTag(data) {
+    return USE_MOCK ? mockApi.addTag(data) : api.post('/tags/user', data)
+  },
+
+  getMyTags(params) {
+    return USE_MOCK ? mockApi.getMyTags(params) : api.get('/tags/user/my', { params })
+  },
+
+  // 标签审核API（管理员）
+  getPendingAudits(params) {
+    return USE_MOCK ? mockApi.getPendingAudits(params) : api.get('/tags/admin/audits', { params })
+  },
+
+  auditTag(id, data) {
+    return USE_MOCK ? mockApi.auditTag(id, data) : api.put(`/tags/admin/audits/${id}`, data)
+  },
+
+  batchAuditTags(data) {
+    return USE_MOCK ? mockApi.batchAuditTags(data) : api.put('/tags/admin/audits/batch', data)
+  },
+
+  // 获取所有用户标签
+  getAllUserTags() {
+    return USE_MOCK ? mockApi.getAllUserTags() : api.get('/tags/user-tags')
   }
 }
 

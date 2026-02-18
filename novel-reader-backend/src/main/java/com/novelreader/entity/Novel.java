@@ -105,6 +105,12 @@ public class Novel {
     private Integer dislikeCount = 0;
 
     /**
+     * 用户标签（JSON数组格式）
+     */
+    @Column(length = 500)
+    private String userTags;
+
+    /**
      * 最新更新时间
      */
     private LocalDateTime latestUpdateTime;
