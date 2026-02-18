@@ -16,17 +16,19 @@
 | 4 | `/test/{platform}` | GET | 测试爬虫（调试用） | ✅ 已实现 |
 | 5 | `/status/{platform}` | GET | 获取平台状态 | ✅ 已实现 |
 | 6 | `/novels` | GET | 获取所有小说（旧接口，兼容） | ✅ 已实现 |
-| 7 | `/novels/page` | GET | 分页查询小说（新接口） | ✅ 已实现 |
+| 7 | `/novels/page` | GET | 分页查询小说（新接口，支持筛选） | ✅ 已实现 |
 | 8 | `/novels/platform/{platform}` | GET | 根据平台获取小说 | ✅ 已实现 |
-| 9 | `/configs` | GET | 获取所有爬虫配置 | ✅ 已实现 |
-| 10 | `/configs/{id}` | GET | 根据ID获取配置 | ✅ 已实现 |
-| 11 | `/configs/{id}` | PUT | 更新配置 | ✅ 已实现 |
-| 12 | `/configs/platform/{platform}` | GET | 根据平台获取配置 | ✅ 已实现 |
-| 13 | `/crawlers` | GET | 获取所有爬虫 | ✅ 已实现 |
-| 14 | `/tasks` | GET | 获取任务列表（分页） | ✅ 已实现 |
-| 15 | `/tasks/{id}` | GET | 获取任务详情 | ✅ 已实现 |
-| 16 | `/tasks` | POST | 创建任务 | ✅ 已实现 |
-| 17 | `/tasks/{id}` | PUT | 更新任务 | ✅ 已实现 |
+| 9 | `/novels/tags` | GET | 获取所有标签 | ✅ 已实现 |
+| 10 | `/novels/tags/platform/{platform}` | GET | 获取指定平台的标签 | ✅ 已实现 |
+| 11 | `/configs` | GET | 获取所有爬虫配置 | ✅ 已实现 |
+| 12 | `/configs/{id}` | GET | 根据ID获取配置 | ✅ 已实现 |
+| 13 | `/configs/{id}` | PUT | 更新配置 | ✅ 已实现 |
+| 14 | `/configs/platform/{platform}` | GET | 根据平台获取配置 | ✅ 已实现 |
+| 15 | `/crawlers` | GET | 获取所有爬虫 | ✅ 已实现 |
+| 16 | `/tasks` | GET | 获取任务列表（分页） | ✅ 已实现 |
+| 17 | `/tasks/{id}` | GET | 获取任务详情 | ✅ 已实现 |
+| 18 | `/tasks` | POST | 创建任务 | ✅ 已实现 |
+| 19 | `/tasks/{id}` | PUT | 更新任务 | ✅ 已实现 |
 
 ---
 
@@ -267,18 +269,78 @@ GET /api/crawler/novels
 
 ---
 
-### 7. 分页查询小说（新接口）⭐
+### 7. 分页查询小说（新接口，支持筛选）⭐⭐⭐
 
 **请求**：
 ```
-GET /api/crawler/novels/page?page=0&size=10&platform=ciweimao&keyword=修仙
+GET /api/crawler/novels/page?page=0&size=10&platform=ciweimao&keyword=修仙&status=1&tag=玄幻&wordCountMin=10w&wordCountMax=200w&sortBy=wordCount&sortOrder=desc
 ```
 
 **查询参数**：
 - `page`: 页码（从0开始，默认0）
 - `size`: 每页数量（默认10）
-- `platform`: 平台筛选（可选）
+- `platform`: 平台筛选（可选，ciweimao/sf/ciyuanji/qidian）
 - `keyword`: 关键词搜索（可选，匹配标题或作者）
+- `status`: 状态筛选（可选，0-停更, 1-连载, 2-完结）
+- `tag`: 标签筛选（可选，单选）
+- `wordCountMin`: 最小字数（可选，全部/10w/30w/50w/100w/200w）
+- `wordCountMax`: 最大字数（可选，全部/10w/30w/50w/100w/200w）
+- `sortBy`: 排序字段（可选，默认updateTime，updateTime/wordCount）
+- `sortOrder`: 排序方向（可选，默认desc，asc/desc）
+
+**字数范围说明**：
+- `wordCountMin`（最小字数）：
+  - 全部 = 不限制最小值
+  - 10w = >= 100,000（字数 >= 10万字）
+  - 30w = >= 300,000（字数 >= 30万字）
+  - 50w = >= 500,000（字数 >= 50万字）
+  - 100w = >= 1,000,000（字数 >= 100万字）
+  - 200w = >= 2,000,000（字数 >= 200万字）
+
+- `wordCountMax`（最大字数）：
+  - 全部 = 不限制最大值
+  - 10w = <= 100,000（字数 <= 10万字）
+  - 30w = <= 300,000（字数 <= 30万字）
+  - 50w = <= 500,000（字数 <= 50万字）
+  - 100w = <= 1,000,000（字数 <= 100万字）
+  - 200w = <= 2,000,000（字数 <= 200万字）
+
+**请求示例**：
+
+示例1：所有筛选条件
+```http
+GET /api/crawler/novels/page?page=0&size=20&platform=ciweimao&keyword=修仙&status=1&tag=玄幻&wordCountMin=10w&wordCountMax=200w&sortBy=wordCount&sortOrder=desc
+```
+
+示例2：仅最小字数
+```http
+GET /api/crawler/novels/page?wordCountMin=10w
+```
+
+示例3：仅最大字数
+```http
+GET /api/crawler/novels/page?wordCountMax=200w
+```
+
+示例4：字数范围（10w-200w）
+```http
+GET /api/crawler/novels/page?wordCountMin=10w&wordCountMax=200w
+```
+
+示例5：按字数降序排序
+```http
+GET /api/crawler/novels/page?sortBy=wordCount&sortOrder=desc
+```
+
+示例6：按状态筛选
+```http
+GET /api/crawler/novels/page?status=1
+```
+
+示例7：按标签筛选
+```http
+GET /api/crawler/novels/page?tag=玄幻
+```
 
 **响应**：
 ```json
@@ -313,6 +375,8 @@ GET /api/crawler/novels/page?page=0&size=10&platform=ciweimao&keyword=修仙
 ```
 
 ✅ **推荐前端使用此接口**
+✅ **支持多条件组合查询**
+✅ **支持动态排序**
 
 ---
 
@@ -341,7 +405,90 @@ GET /api/crawler/novels/platform/{platform}
 
 ---
 
-### 9. 获取所有爬虫配置
+### 9. 获取所有标签 ⭐⭐
+
+**请求**：
+```
+GET /api/crawler/novels/tags
+```
+
+**响应**：
+```json
+{
+  "success": true,
+  "tags": [
+    {
+      "tag_name": "玄幻",
+      "tag_count": 1250
+    },
+    {
+      "tag_name": "修仙",
+      "tag_count": 980
+    },
+    {
+      "tag_name": "穿越",
+      "tag_count": 856
+    }
+  ]
+}
+```
+
+**字段说明**：
+- `tag_name`: 标签名称
+- `tag_count`: 该标签的小说数量
+
+**说明**：
+- 标签按小说数量降序排序
+- 最多返回100个标签
+- 建议前端缓存标签列表（1小时）
+
+---
+
+### 10. 获取指定平台的标签 ⭐⭐
+
+**请求**：
+```
+GET /api/crawler/novels/tags/platform/{platform}
+```
+
+**路径参数**：
+- `platform`: 平台标识（ciweimao/sf/ciyuanji/qidian）
+
+**响应**：
+```json
+{
+  "success": true,
+  "platform": "ciweimao",
+  "tags": [
+    {
+      "tag_name": "玄幻",
+      "tag_count": 450
+    },
+    {
+      "tag_name": "修仙",
+      "tag_count": 320
+    },
+    {
+      "tag_name": "穿越",
+      "tag_count": 280
+    }
+  ]
+}
+```
+
+**字段说明**：
+- `platform`: 平台标识
+- `tag_name`: 标签名称
+- `tag_count`: 该标签在该平台的小说数量
+
+**说明**：
+- 标签按小说数量降序排序
+- 最多返回100个标签
+- 建议前端缓存标签列表（1小时）
+
+---
+
+### 11. 获取所有爬虫配置
 
 **请求**：
 ```
@@ -366,7 +513,32 @@ GET /api/crawler/configs
 
 ---
 
-### 10. 根据ID获取配置
+### 11. 获取所有爬虫配置
+
+**请求**：
+```
+GET /api/crawler/configs
+```
+
+**响应**：
+```json
+[
+  {
+    "id": 1,
+    "platform": "ciweimao",
+    "baseUrl": "https://mip.ciweimao.com",
+    "enabled": 1,
+    "tags": "[\"玄幻\", \"修仙\", \"都市\"]",
+    "crawlInterval": 7200,
+    "maxRetry": 3,
+    ...
+  }
+]
+```
+
+---
+
+### 12. 根据ID获取配置
 
 **请求**：
 ```
@@ -389,7 +561,7 @@ GET /api/crawler/configs/{id}
 
 ---
 
-### 11. 更新配置 ⭐
+### 13. 更新配置 ⭐
 
 **请求**：
 ```
@@ -433,7 +605,7 @@ Content-Type: application/json
 
 ---
 
-### 12. 根据平台获取配置
+### 14. 根据平台获取配置
 
 **请求**：
 ```
@@ -455,7 +627,7 @@ GET /api/crawler/configs/platform/{platform}
 
 ---
 
-### 13. 获取所有爬虫
+### 15. 获取所有爬虫
 
 **请求**：
 ```
@@ -473,7 +645,7 @@ GET /api/crawler/crawlers
 
 ---
 
-### 14. 获取任务列表（分页）⭐
+### 16. 获取任务列表（分页）⭐
 
 **请求**：
 ```
@@ -514,7 +686,7 @@ GET /api/crawler/tasks?page=0&size=10&platform=ciweimao&status=SUCCESS
 
 ---
 
-### 15. 获取任务详情 ⭐
+### 17. 获取任务详情 ⭐
 
 **请求**：
 ```
@@ -544,7 +716,7 @@ GET /api/crawler/tasks/{id}
 
 ---
 
-### 16. 创建任务
+### 18. 创建任务
 
 **请求**：
 ```
@@ -571,7 +743,7 @@ Content-Type: application/json
 
 ---
 
-### 17. 更新任务
+### 19. 更新任务
 
 **请求**：
 ```
