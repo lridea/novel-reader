@@ -1,0 +1,74 @@
+package com.novelreader.controller;
+
+import com.novelreader.entity.User;
+import com.novelreader.service.CommentService;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.HashMap;
+import java.util.Map;
+
+/**
+ * 评论Controller
+ */
+@Slf4j
+@RestController
+@RequestMapping("/api/comments")
+public class CommentController {
+
+    @Autowired
+    private CommentService commentService;
+
+    /**
+     * 获取评论列表（分页）
+     */
+    @GetMapping("/novel/{novelId}")
+    public Map<String, Object> getComments(
+            @PathVariable Long novelId,
+            @RequestParam(defaultValue = "0") Integer page,
+            @RequestParam(defaultValue = "10") Integer size,
+            @RequestParam(required = false) Integer floor,
+            @RequestParam(required = false) Long parentId,
+            Authentication authentication
+    ) {
+        log.info("获取评论列表: novelId={}, page={}, size={}, floor={}, parentId={}", novelId, page, size, floor, parentId);
+
+        Long userId = null;
+        if (authentication != null && authentication.isAuthenticated()) {
+            User user = (User) authentication.getPrincipal();
+            userId = user.getId();
+        }
+
+        return commentService.getComments(novelId, page, size, floor, parentId, userId);
+    }
+
+    /**
+     * 添加评论
+     */
+    @PostMapping
+    public Map<String, Object> addComment(
+            @RequestBody Map<String, Object> request,
+            Authentication authentication
+    ) {
+        log.info("添加评论: {}", request);
+
+        // 检查用户是否登录
+        if (authentication == null || !authentication.isAuthenticated()) {
+            Map<String, Object> result = new HashMap<>();
+            result.put("success", false);
+            result.put("message", "请先登录");
+            return result;
+        }
+
+        User user = (User) authentication.getPrincipal();
+
+        Long novelId = ((Number) request.get("novelId")).longValue();
+        Long parentId = request.get("parentId") != null ? ((Number) request.get("parentId")).longValue() : null;
+        Integer floor = request.get("floor") != null ? ((Number) request.get("floor")).intValue() : 1;
+        String content = (String) request.get("content");
+
+        return commentService.addComment(user.getId(), novelId, parentId, floor, content);
+    }
+}
