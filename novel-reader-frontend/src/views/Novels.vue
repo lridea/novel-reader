@@ -129,6 +129,23 @@
             </el-button>
           </div>
         </div>
+
+        <!-- 收藏数筛选 -->
+        <div class="filter-row">
+          <span class="filter-label">收藏数:</span>
+          <div class="filter-buttons">
+            <el-button
+              v-for="fc in favoriteCountOptions"
+              :key="fc.value"
+              :type="favoriteCountMin === fc.value ? 'primary' : ''"
+              :class="{ 'filter-button': true, 'active': favoriteCountMin === fc.value }"
+              @click="favoriteCountMin = fc.value; loadData()"
+              size="small"
+            >
+              {{ fc.label }}
+            </el-button>
+          </div>
+        </div>
       </div>
 
       <el-table :data="novels" style="width: 100%" v-loading="loading">
@@ -167,8 +184,25 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="100" fixed="right">
+        <el-table-column prop="favoriteCount" label="收藏数" width="100">
           <template #default="{ row }">
+            <span style="color: #F56C6C; font-weight: 500;">
+              <el-icon><Star /></el-icon>
+              {{ row.favoriteCount || 0 }}
+            </span>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="120" fixed="right">
+          <template #default="{ row }">
+            <el-button
+              v-if="row.isFavorite !== null"
+              :type="row.isFavorite ? 'warning' : 'default'"
+              :icon="row.isFavorite ? StarFilled : Star"
+              size="small"
+              @click="toggleFavorite(row)"
+            >
+              {{ row.isFavorite ? '已收藏' : '收藏' }}
+            </el-button>
             <el-button type="primary" size="small" @click="viewDetail(row)">
               详情
             </el-button>
@@ -193,8 +227,9 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { Search, Picture } from '@element-plus/icons-vue'
-import { crawlerApi } from '../api'
+import { ElMessage } from 'element-plus'
+import { Search, Picture, Star, StarFilled } from '@element-plus/icons-vue'
+import { crawlerApi, favoriteApi } from '../api'
 
 const router = useRouter()
 const loading = ref(false)
@@ -210,6 +245,7 @@ const filterStatus = ref('')
 const filterTag = ref('')
 const wordCountMin = ref('')
 const wordCountMax = ref('')
+const favoriteCountMin = ref('')
 const sortBy = ref('updateTime')
 const sortOrder = ref('desc')
 
@@ -242,11 +278,22 @@ const wordCountOptions = [
   { label: '200w', value: '200w' }
 ]
 
+const favoriteCountOptions = [
+  { label: '全部', value: '' },
+  { label: '10+', value: 10 },
+  { label: '50+', value: 50 },
+  { label: '100+', value: 100 },
+  { label: '500+', value: 500 },
+  { label: '1000+', value: 1000 }
+]
+
 const sortOptions = [
   { label: '更新时间↓', value: 'updateTime-desc', sortBy: 'updateTime', sortOrder: 'desc' },
   { label: '更新时间↑', value: 'updateTime-asc', sortBy: 'updateTime', sortOrder: 'asc' },
   { label: '字数↓', value: 'wordCount-desc', sortBy: 'wordCount', sortOrder: 'desc' },
-  { label: '字数↑', value: 'wordCount-asc', sortBy: 'wordCount', sortOrder: 'asc' }
+  { label: '字数↑', value: 'wordCount-asc', sortBy: 'wordCount', sortOrder: 'asc' },
+  { label: '收藏数↓', value: 'favoriteCount-desc', sortBy: 'favoriteCount', sortOrder: 'desc' },
+  { label: '收藏数↑', value: 'favoriteCount-asc', sortBy: 'favoriteCount', sortOrder: 'asc' }
 ]
 
 // 加载标签列表
@@ -322,6 +369,9 @@ const loadData = async () => {
     if (wordCountMax.value) {
       params.wordCountMax = wordCountMax.value
     }
+    if (favoriteCountMin.value) {
+      params.favoriteCountMin = favoriteCountMin.value
+    }
     if (sortBy.value) {
       params.sortBy = sortBy.value
     }
@@ -340,10 +390,61 @@ const loadData = async () => {
   } finally {
     loading.value = false
   }
+  
+  // 批量查询收藏状态
+  await loadFavoriteStatusBatch()
 }
 
 const viewDetail = (row) => {
   router.push(`/novels/${row.id}`)
+}
+
+const toggleFavorite = async (row) => {
+  try {
+    if (row.isFavorite) {
+      const response = await favoriteApi.removeFavorite(row.id)
+      if (response && response.success) {
+        row.isFavorite = false
+        row.favoriteCount = Math.max(0, row.favoriteCount - 1)
+        ElMessage.success('取消收藏成功')
+      } else {
+        ElMessage.error(response.message || '取消收藏失败')
+      }
+    } else {
+      const response = await favoriteApi.addFavorite({ novelId: row.id, note: '' })
+      if (response && response.success) {
+        row.isFavorite = true
+        row.favoriteCount = (row.favoriteCount || 0) + 1
+        ElMessage.success('收藏成功')
+      } else {
+        ElMessage.error(response.message || '收藏失败')
+      }
+    }
+  } catch (error) {
+    console.error('切换收藏失败:', error)
+    ElMessage.error('操作失败')
+  }
+}
+
+const loadFavoriteStatusBatch = async () => {
+  if (novels.value.length === 0) {
+    return
+  }
+  
+  const novelIds = novels.value.map(n => n.id).join(',')
+  try {
+    const response = await favoriteApi.checkBatchFavorites(novelIds)
+    if (response && response.success && response.favorites) {
+      novels.value.forEach(novel => {
+        novel.isFavorite = response.favorites[novel.id] || false
+      })
+    }
+  } catch (error) {
+    console.error('批量查询收藏状态失败:', error)
+    novels.value.forEach(novel => {
+      novel.isFavorite = false
+    })
+  }
 }
 
 onMounted(() => {

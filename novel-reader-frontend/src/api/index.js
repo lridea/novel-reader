@@ -121,6 +121,10 @@ export const crawlerApi = {
     return USE_MOCK ? mockApi.updateFavoriteNote(novelId, note) : api.put(`/favorites/${novelId}/note`, { note })
   },
 
+  checkBatchFavorites(novelIds) {
+    return USE_MOCK ? mockApi.checkBatchFavorites(novelIds) : api.get(`/favorites/check-batch`, { params: { novelIds } })
+  },
+
   // 分类相关API
   createCategory(data) {
     return USE_MOCK ? mockApi.createCategory(data) : api.post('/categories', data)

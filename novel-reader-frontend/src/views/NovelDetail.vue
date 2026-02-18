@@ -4,6 +4,16 @@
       <template #content>
         <span class="page-title">小说详情</span>
       </template>
+      <template #extra>
+        <el-button
+          v-if="novel.isFavorite !== null"
+          :type="novel.isFavorite ? 'warning' : 'default'"
+          :icon="novel.isFavorite ? StarFilled : Star"
+          @click="toggleFavorite(novel)"
+        >
+          {{ novel.isFavorite ? '已收藏' : '收藏' }}
+        </el-button>
+      </template>
     </el-page-header>
 
     <el-card shadow="hover" style="margin-top: 20px;">
@@ -29,6 +39,10 @@
             <el-tag :type="getStatusType(novel.status)">
               {{ getStatusText(novel.status) }}
             </el-tag>
+            <span class="favorite-count">
+              <el-icon><Star /></el-icon>
+              {{ novel.favoriteCount || 0 }}
+            </span>
           </div>
           <div class="update-info">
             <span>最新章节：{{ novel.latestChapterTitle || '-' }}</span>
@@ -60,8 +74,9 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Picture } from '@element-plus/icons-vue'
-import { crawlerApi } from '../api'
+import { ElMessage } from 'element-plus'
+import { Picture, Star, StarFilled } from '@element-plus/icons-vue'
+import { crawlerApi, favoriteApi } from '../api'
 
 const route = useRoute()
 const router = useRouter()
@@ -78,7 +93,9 @@ const novel = ref({
   firstChaptersSummary: '',
   lastCrawlTime: '',
   crawlCount: 0,
-  status: 1
+  status: 1,
+  favoriteCount: 0,
+  isFavorite: null
 })
 
 const getPlatformName = (platform) => {
@@ -111,6 +128,33 @@ const getStatusText = (status) => {
 
 const goBack = () => {
   router.push('/novels')
+}
+
+const toggleFavorite = async (row) => {
+  try {
+    if (row.isFavorite) {
+      const response = await favoriteApi.removeFavorite(row.id)
+      if (response && response.success) {
+        row.isFavorite = false
+        row.favoriteCount = Math.max(0, row.favoriteCount - 1)
+        ElMessage.success('取消收藏成功')
+      } else {
+        ElMessage.error(response.message || '取消收藏失败')
+      }
+    } else {
+      const response = await favoriteApi.addFavorite({ novelId: row.id, note: '' })
+      if (response && response.success) {
+        row.isFavorite = true
+        row.favoriteCount = (row.favoriteCount || 0) + 1
+        ElMessage.success('收藏成功')
+      } else {
+        ElMessage.error(response.message || '收藏失败')
+      }
+    }
+  } catch (error) {
+    console.error('切换收藏失败:', error)
+    ElMessage.error('操作失败')
+  }
 }
 
 const loadData = async () => {
@@ -181,6 +225,14 @@ onMounted(() => {
 
 .author {
   color: #606266;
+}
+
+.favorite-count {
+  color: #F56C6C;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .update-info,

@@ -29,6 +29,7 @@ const MOCK_NOVELS = [
     lastCrawlTime: '2026-02-18T09:00:00',
     crawlCount: 15,
     status: 1,
+    favoriteCount: 125,
     deleted: 0,
     createdAt: '2026-02-15T10:00:00',
     updatedAt: '2026-02-18T09:00:00'
@@ -49,6 +50,7 @@ const MOCK_NOVELS = [
     lastCrawlTime: '2026-02-18T08:30:00',
     crawlCount: 12,
     status: 1,
+    favoriteCount: 89,
     deleted: 0,
     createdAt: '2026-02-15T12:00:00',
     updatedAt: '2026-02-18T08:30:00'
@@ -69,6 +71,7 @@ const MOCK_NOVELS = [
     lastCrawlTime: '2026-02-18T09:30:00',
     crawlCount: 8,
     status: 1,
+    favoriteCount: 67,
     deleted: 0,
     createdAt: '2026-02-16T10:00:00',
     updatedAt: '2026-02-18T09:30:00'
@@ -261,6 +264,12 @@ const MOCK_TASKS = [
   }
 ]
 
+const MOCK_FAVORITES = [
+  { userId: 1, novelId: 1, category: 'default', note: '', createdAt: '2026-02-18T09:00:00' },
+  { userId: 1, novelId: 3, category: 'default', note: '', createdAt: '2026-02-18T09:30:00' },
+  { userId: 1, novelId: 5, category: 'default', note: '', createdAt: '2026-02-18T10:00:00' }
+]
+
 // 模拟延迟
 const delay = (ms = 300) => new Promise(resolve => setTimeout(resolve, ms))
 
@@ -437,6 +446,130 @@ export const mockApi = {
   // 获取任务详情（新增）
   async getTask(id) {
     return MOCK_TASKS.find(t => t.id === id)
+  },
+
+  // 收藏相关API
+  async addFavorite(data) {
+    await delay()
+    const { novelId, note = '' } = data
+    
+    // 检查是否已收藏
+    if (MOCK_FAVORITES.some(f => f.novelId === novelId)) {
+      throw new Error('已收藏该小说')
+    }
+    
+    // 添加收藏
+    const favorite = {
+      userId: 1,
+      novelId,
+      category: 'default',
+      note,
+      createdAt: new Date().toISOString()
+    }
+    MOCK_FAVORITES.push(favorite)
+    
+    // 更新小说的收藏数
+    const novel = MOCK_NOVELS.find(n => n.id === novelId)
+    if (novel) {
+      novel.favoriteCount = (novel.favoriteCount || 0) + 1
+    }
+    
+    return {
+      success: true,
+      message: '收藏成功',
+      favorite,
+      novelFavoriteCount: novel?.favoriteCount || 0
+    }
+  },
+
+  async removeFavorite(novelId) {
+    await delay()
+    
+    // 删除收藏
+    const index = MOCK_FAVORITES.findIndex(f => f.novelId === novelId)
+    if (index === -1) {
+      throw new Error('未收藏该小说')
+    }
+    MOCK_FAVORITES.splice(index, 1)
+    
+    // 更新小说的收藏数
+    const novel = MOCK_NOVELS.find(n => n.id === novelId)
+    if (novel && novel.favoriteCount > 0) {
+      novel.favoriteCount = novel.favoriteCount - 1
+    }
+    
+    return {
+      success: true,
+      message: '取消成功',
+      novelFavoriteCount: novel?.favoriteCount || 0
+    }
+  },
+
+  async getFavorites(params = {}) {
+    await delay()
+    const { page = 0, size = 10 } = params
+    
+    // 过滤当前用户的收藏
+    const userFavorites = MOCK_FAVORITES.filter(f => f.userId === 1)
+    const total = userFavorites.length
+    const start = page * size
+    const end = start + size
+    const content = userFavorites.slice(start, end)
+    
+    // 联合小说信息
+    const favorites = content.map(f => {
+      const novel = MOCK_NOVELS.find(n => n.id === f.novelId)
+      return {
+        ...f,
+        novel: novel ? {
+          title: novel.title,
+          author: novel.author,
+          coverUrl: novel.coverUrl,
+          description: novel.description
+        } : null
+      }
+    })
+    
+    return {
+      content: favorites,
+      totalElements: total,
+      totalPages: Math.ceil(total / size),
+      size,
+      number: page
+    }
+  },
+
+  async updateFavoriteNote(novelId, note) {
+    await delay()
+    
+    const favorite = MOCK_FAVORITES.find(f => f.novelId === novelId)
+    if (!favorite) {
+      throw new Error('未收藏该小说')
+    }
+    favorite.note = note
+    
+    return {
+      success: true,
+      message: '更新成功',
+      favorite
+    }
+  },
+
+  async checkBatchFavorites(novelIds) {
+    await delay()
+    
+    const novelIdList = novelIds.split(',').map(id => parseInt(id.trim()))
+    const favorites = MOCK_FAVORITES.filter(f => f.userId === 1 && novelIdList.includes(f.novelId))
+    
+    const favoritesMap = {}
+    novelIdList.forEach(id => {
+      favoritesMap[id] = favorites.some(f => f.novelId === id)
+    })
+    
+    return {
+      success: true,
+      favorites: favoritesMap
+    }
   }
 }
 
