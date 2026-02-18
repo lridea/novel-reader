@@ -270,6 +270,61 @@ const MOCK_FAVORITES = [
   { userId: 1, novelId: 5, category: 'default', note: '', createdAt: '2026-02-18T10:00:00' }
 ]
 
+const MOCK_COMMENTS = [
+  {
+    id: 1,
+    userId: 1,
+    novelId: 1,
+    parentId: null,
+    floor: 1,
+    content: '这本书太好看了！主角林风太厉害了！',
+    likeCount: 10,
+    replyCount: 2,
+    deleted: 0,
+    createdAt: '2026-02-18T08:00:00',
+    updatedAt: '2026-02-18T08:00:00'
+  },
+  {
+    id: 2,
+    userId: 2,
+    novelId: 1,
+    parentId: 1,
+    floor: 2,
+    content: '同意！系统设定很有趣！',
+    likeCount: 5,
+    replyCount: 0,
+    deleted: 0,
+    createdAt: '2026-02-18T08:30:00',
+    updatedAt: '2026-02-18T08:30:00'
+  },
+  {
+    id: 3,
+    userId: 3,
+    novelId: 1,
+    parentId: 1,
+    floor: 2,
+    content: '我也觉得，特别是宗门大比那段！',
+    likeCount: 3,
+    replyCount: 0,
+    deleted: 0,
+    createdAt: '2026-02-18T09:00:00',
+    updatedAt: '2026-02-18T09:00:00'
+  },
+  {
+    id: 4,
+    userId: 2,
+    novelId: 1,
+    parentId: null,
+    floor: 1,
+    content: '作者更新太慢了，求快更！',
+    likeCount: 2,
+    replyCount: 0,
+    deleted: 0,
+    createdAt: '2026-02-18T09:30:00',
+    updatedAt: '2026-02-18T09:30:00'
+  }
+]
+
 // 模拟延迟
 const delay = (ms = 300) => new Promise(resolve => setTimeout(resolve, ms))
 
@@ -557,18 +612,152 @@ export const mockApi = {
 
   async checkBatchFavorites(novelIds) {
     await delay()
-    
+
     const novelIdList = novelIds.split(',').map(id => parseInt(id.trim()))
     const favorites = MOCK_FAVORITES.filter(f => f.userId === 1 && novelIdList.includes(f.novelId))
-    
+
     const favoritesMap = {}
     novelIdList.forEach(id => {
       favoritesMap[id] = favorites.some(f => f.novelId === id)
     })
-    
+
     return {
       success: true,
       favorites: favoritesMap
+    }
+  },
+
+  // 评论相关API
+  async getComments(novelId, params = {}) {
+    await delay()
+    const { page = 0, size = 10, floor, parentId } = params
+
+    let comments = MOCK_COMMENTS.filter(c => c.novelId === novelId && c.deleted === 0)
+
+    // 楼层过滤
+    if (floor === 2 && parentId) {
+      comments = comments.filter(c => c.parentId === parentId)
+    } else {
+      comments = comments.filter(c => c.floor === 1)
+    }
+
+    const total = comments.length
+    const start = page * size
+    const end = start + size
+    const content = comments.slice(start, end)
+
+    // 转换为DTO格式
+    const contentDtos = content.map(c => {
+      const dto = {
+        id: c.id,
+        userId: c.userId,
+        novelId: c.novelId,
+        parentId: c.parentId,
+        floor: c.floor,
+        content: c.content,
+        likeCount: c.likeCount,
+        replyCount: c.replyCount,
+        createdAt: c.createdAt,
+        updatedAt: c.updatedAt,
+        liked: false,
+        isOwner: c.userId === 1,
+        user: {
+          id: c.userId,
+          username: `user${c.userId}`,
+          nickname: `用户${c.userId}`,
+          avatar: `https://picsum.photos/100?random=${c.userId}`
+        }
+      }
+
+      // 如果是回复，添加父评论用户信息
+      if (c.parentId) {
+        const parent = MOCK_COMMENTS.find(p => p.id === c.parentId)
+        if (parent) {
+          dto.parentUser = {
+            id: parent.userId,
+            username: `user${parent.userId}`,
+            nickname: `用户${parent.userId}`,
+            avatar: `https://picsum.photos/100?random=${parent.userId}`
+          }
+        }
+      }
+
+      return dto
+    })
+
+    return {
+      content: contentDtos,
+      totalElements: total,
+      totalPages: Math.ceil(total / size),
+      size,
+      number: page
+    }
+  },
+
+  async addComment(data) {
+    await delay()
+    const { novelId, parentId, floor, content } = data
+
+    // 检查小说是否存在
+    const novel = MOCK_NOVELS.find(n => n.id === novelId)
+    if (!novel) {
+      throw new Error('小说不存在')
+    }
+
+    // 创建评论
+    const comment = {
+      id: MOCK_COMMENTS.length + 1,
+      userId: 1,
+      novelId,
+      parentId,
+      floor,
+      content,
+      likeCount: 0,
+      replyCount: 0,
+      deleted: 0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    }
+
+    MOCK_COMMENTS.unshift(comment)
+
+    // 更新小说的评论数
+    novel.commentCount = (novel.commentCount || 0) + 1
+
+    // 如果是回复，更新父评论的回复数
+    if (floor === 2 && parentId) {
+      const parent = MOCK_COMMENTS.find(c => c.id === parentId)
+      if (parent) {
+        parent.replyCount = (parent.replyCount || 0) + 1
+      }
+    }
+
+    const commentDto = {
+      id: comment.id,
+      userId: comment.userId,
+      novelId: comment.novelId,
+      parentId: comment.parentId,
+      floor: comment.floor,
+      content: comment.content,
+      likeCount: comment.likeCount,
+      replyCount: comment.replyCount,
+      createdAt: comment.createdAt,
+      updatedAt: comment.updatedAt,
+      liked: false,
+      isOwner: true,
+      user: {
+        id: 1,
+        username: 'user1',
+        nickname: '用户1',
+        avatar: 'https://picsum.photos/100?random=1'
+      }
+    }
+
+    return {
+      success: true,
+      message: '评论成功',
+      comment: commentDto,
+      novelCommentCount: novel.commentCount || 0
     }
   }
 }

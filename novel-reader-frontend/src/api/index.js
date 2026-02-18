@@ -125,6 +125,15 @@ export const crawlerApi = {
     return USE_MOCK ? mockApi.checkBatchFavorites(novelIds) : api.get(`/favorites/check-batch`, { params: { novelIds } })
   },
 
+  // 评论相关API
+  getComments(novelId, params) {
+    return USE_MOCK ? mockApi.getComments(novelId, params) : api.get(`/comments/novel/${novelId}`, { params })
+  },
+
+  addComment(data) {
+    return USE_MOCK ? mockApi.addComment(data) : api.post('/comments', data)
+  },
+
   // 分类相关API
   createCategory(data) {
     return USE_MOCK ? mockApi.createCategory(data) : api.post('/categories', data)
