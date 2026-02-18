@@ -30,6 +30,7 @@ const MOCK_NOVELS = [
     crawlCount: 15,
     status: 1,
     favoriteCount: 125,
+    commentCount: 15,
     deleted: 0,
     createdAt: '2026-02-15T10:00:00',
     updatedAt: '2026-02-18T09:00:00'
@@ -51,6 +52,7 @@ const MOCK_NOVELS = [
     crawlCount: 12,
     status: 1,
     favoriteCount: 89,
+    commentCount: 8,
     deleted: 0,
     createdAt: '2026-02-15T12:00:00',
     updatedAt: '2026-02-18T08:30:00'
@@ -72,6 +74,7 @@ const MOCK_NOVELS = [
     crawlCount: 8,
     status: 1,
     favoriteCount: 67,
+    commentCount: 5,
     deleted: 0,
     createdAt: '2026-02-16T10:00:00',
     updatedAt: '2026-02-18T09:30:00'
@@ -92,6 +95,7 @@ const MOCK_NOVELS = [
     lastCrawlTime: '2026-02-18T07:00:00',
     crawlCount: 6,
     status: 1,
+    commentCount: 2,
     deleted: 0,
     createdAt: '2026-02-16T14:00:00',
     updatedAt: '2026-02-18T07:00:00'
@@ -112,6 +116,7 @@ const MOCK_NOVELS = [
     lastCrawlTime: '2026-02-18T09:15:00',
     crawlCount: 5,
     status: 1,
+    commentCount: 0,
     deleted: 0,
     createdAt: '2026-02-17T10:00:00',
     updatedAt: '2026-02-18T09:15:00'
@@ -132,6 +137,7 @@ const MOCK_NOVELS = [
     lastCrawlTime: '2026-02-18T08:00:00',
     crawlCount: 4,
     status: 1,
+    commentCount: 0,
     deleted: 0,
     createdAt: '2026-02-17T15:00:00',
     updatedAt: '2026-02-18T08:00:00'
