@@ -72,8 +72,7 @@ public class SecurityConfig {
                         // 公开接口（无需认证）
                         .requestMatchers(
                                 "/api/crawler/health",
-                                "/api/crawler/novels/**",
-                                "/api/crawler/crawlers"
+                                "/api/crawler/novels/**"
                         ).permitAll()
 
                         // 认证接口（无需认证）
@@ -84,6 +83,7 @@ public class SecurityConfig {
 
                         // 爬虫管理接口（需要ADMIN角色）
                         .requestMatchers(
+                                "/api/crawler/crawlers",
                                 "/api/crawler/trigger",
                                 "/api/crawler/trigger/**",
                                 "/api/crawler/test/**",
