@@ -139,4 +139,34 @@ public interface NovelRepository extends JpaRepository<Novel, Long> {
     @Query("UPDATE Novel n SET n.commentCount = n.commentCount - 1 WHERE n.id = :novelId AND n.commentCount > 0")
     @Transactional
     void decrementCommentCount(@Param("novelId") Long novelId);
+
+    /**
+     * 原子操作：点踩数+1
+     */
+    @Modifying
+    @Query("UPDATE Novel n SET n.dislikeCount = n.dislikeCount + 1 WHERE n.id = :novelId")
+    @Transactional
+    void incrementDislikeCount(@Param("novelId") Long novelId);
+
+    /**
+     * 原子操作：点踩数-1
+     */
+    @Modifying
+    @Query("UPDATE Novel n SET n.dislikeCount = n.dislikeCount - 1 WHERE n.id = :novelId AND n.dislikeCount > 0")
+    @Transactional
+    void decrementDislikeCount(@Param("novelId") Long novelId);
+
+    /**
+     * 根据关键词和最小点踩数搜索（管理员）
+     */
+    @Query("SELECT n FROM Novel n WHERE n.deleted = 0 " +
+           "AND (n.title LIKE %:keyword% OR n.author LIKE %:keyword%) " +
+           "AND n.dislikeCount >= :minDislikeCount")
+    Page<Novel> searchByKeywordAndMinDislikeCount(@Param("keyword") String keyword, @Param("minDislikeCount") Integer minDislikeCount, Pageable pageable);
+
+    /**
+     * 根据最小点踩数搜索（管理员）
+     */
+    @Query("SELECT n FROM Novel n WHERE n.deleted = 0 AND n.dislikeCount >= :minDislikeCount")
+    Page<Novel> searchByMinDislikeCount(@Param("minDislikeCount") Integer minDislikeCount, Pageable pageable);
 }

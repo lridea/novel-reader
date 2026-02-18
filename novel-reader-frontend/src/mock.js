@@ -1009,6 +1009,158 @@ export const mockApi = {
       successCount,
       skipCount
     }
+  },
+
+  // 书籍点踩相关API
+  async dislikeNovel(novelId) {
+    await delay()
+
+    // 初始化Mock点踩数据
+    if (!global.MOCK_DISLIKES) {
+      global.MOCK_DISLIKES = []
+    }
+    const MOCK_DISLIKES = global.MOCK_DISLIKES
+
+    // 检查书籍是否存在
+    const novel = MOCK_NOVELS.find(n => n.id === novelId)
+    if (!novel) {
+      throw new Error('书籍不存在')
+    }
+
+    // 检查是否已点踩
+    if (MOCK_DISLIKES.some(d => d.novelId === novelId)) {
+      return {
+        success: false,
+        message: '已点踩该书籍',
+        disliked: true,
+        dislikeCount: novel.dislikeCount || 0
+      }
+    }
+
+    // 创建点踩记录
+    const dislike = {
+      id: Date.now(),
+      userId: 1,
+      novelId,
+      createdAt: new Date().toISOString()
+    }
+    MOCK_DISLIKES.push(dislike)
+
+    // 更新书籍的点踩数
+    if (!novel.dislikeCount) {
+      novel.dislikeCount = 0
+    }
+    novel.dislikeCount++
+
+    return {
+      success: true,
+      message: '点踩成功',
+      disliked: true,
+      dislikeCount: novel.dislikeCount
+    }
+  },
+
+  async undislikeNovel(novelId) {
+    await delay()
+
+    // 初始化Mock点踩数据
+    if (!global.MOCK_DISLIKES) {
+      global.MOCK_DISLIKES = []
+    }
+    const MOCK_DISLIKES = global.MOCK_DISLIKES
+
+    // 检查书籍是否存在
+    const novel = MOCK_NOVELS.find(n => n.id === novelId)
+    if (!novel) {
+      throw new Error('书籍不存在')
+    }
+
+    // 检查是否已点踩
+    const dislikeIndex = MOCK_DISLIKES.findIndex(d => d.novelId === novelId)
+    if (dislikeIndex === -1) {
+      return {
+        success: false,
+        message: '未点踩该书籍',
+        disliked: false,
+        dislikeCount: novel.dislikeCount || 0
+      }
+    }
+
+    // 删除点踩记录
+    MOCK_DISLIKES.splice(dislikeIndex, 1)
+
+    // 更新书籍的点踩数
+    if (novel.dislikeCount > 0) {
+      novel.dislikeCount--
+    }
+
+    return {
+      success: true,
+      message: '取消点踩成功',
+      disliked: false,
+      dislikeCount: novel.dislikeCount
+    }
+  },
+
+  // 书籍管理API（管理员）
+  async searchNovels(params) {
+    await delay()
+    const { page = 0, size = 10, keyword, minDislikeCount } = params
+
+    let novels = MOCK_NOVELS || []
+
+    // 根据关键词搜索
+    if (keyword && keyword.trim()) {
+      const keywordLower = keyword.toLowerCase()
+      novels = novels.filter(novel =>
+        (novel.title && novel.title.toLowerCase().includes(keywordLower)) ||
+        (novel.author && novel.author.toLowerCase().includes(keywordLower))
+      )
+    }
+
+    // 根据最小点踩数过滤
+    if (minDislikeCount && minDislikeCount > 0) {
+      novels = novels.filter(novel => (novel.dislikeCount || 0) >= minDislikeCount)
+    }
+
+    // 分页
+    const total = novels.length
+    const start = page * size
+    const end = start + size
+    const content = novels.slice(start, end)
+
+    return {
+      success: true,
+      content,
+      totalElements: total,
+      totalPages: Math.ceil(total / size),
+      size,
+      number: page
+    }
+  },
+
+  async batchDeleteNovels(ids) {
+    await delay()
+    let deleteCount = 0
+
+    if (!global.MOCK_NOVELS) {
+      global.MOCK_NOVELS = []
+    }
+    const MOCK_NOVELS = global.MOCK_NOVELS
+
+    for (const id of ids) {
+      const index = MOCK_NOVELS.findIndex(n => n.id === id)
+      if (index !== -1) {
+        MOCK_NOVELS.splice(index, 1)
+        deleteCount++
+      }
+    }
+
+    return {
+      success: true,
+      message: '批量删除成功',
+      deleteCount
+    }
   }
 }
 

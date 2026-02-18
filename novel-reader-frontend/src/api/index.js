@@ -214,6 +214,24 @@ export const crawlerApi = {
 
   importSensitiveWords(words) {
     return USE_MOCK ? mockApi.importSensitiveWords(words) : api.post('/sensitive-words/import', { words })
+  },
+
+  // 书籍点踩相关API
+  dislikeNovel(novelId) {
+    return USE_MOCK ? mockApi.dislikeNovel(novelId) : api.post(`/novels/${novelId}/dislike`)
+  },
+
+  undislikeNovel(novelId) {
+    return USE_MOCK ? mockApi.undislikeNovel(novelId) : api.delete(`/novels/${novelId}/dislike`)
+  },
+
+  // 书籍管理API（管理员）
+  searchNovels(params) {
+    return USE_MOCK ? mockApi.searchNovels(params) : api.get('/novels/admin/search', { params })
+  },
+
+  batchDeleteNovels(ids) {
+    return USE_MOCK ? mockApi.batchDeleteNovels(ids) : api.delete('/novels/batch', { data: { ids } })
   }
 }
 
