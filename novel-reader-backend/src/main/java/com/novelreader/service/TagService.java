@@ -17,7 +17,6 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.security.Principal;
 import java.time.LocalDateTime;
 import java.util.*;
 
@@ -90,7 +89,7 @@ public class TagService {
         Page<TagAudit> tagAuditPage;
 
         if (status != null) {
-            tagAuditPage = tagAuditRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable);
+            tagAuditPage = tagAuditRepository.findByUserIdAndStatusOrderByCreatedAtDesc(userId, status, pageable);
         } else {
             tagAuditPage = tagAuditRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable);
         }
@@ -238,6 +237,9 @@ public class TagService {
         int approveCount = 0;
         int rejectCount = 0;
 
+        // 使用Set去重，避免重复更新
+        Set<Long> updatedNovelIds = new HashSet<>();
+
         for (Long auditId : auditIds) {
             Optional<TagAudit> tagAuditOpt = tagAuditRepository.findById(auditId);
             if (tagAuditOpt.isEmpty()) {
@@ -266,12 +268,17 @@ public class TagService {
                 userTag.setTag(tagAudit.getTag());
                 userTagRepository.save(userTag);
 
-                // 更新书籍的userTags字段
-                updateUserTags(tagAudit.getNovelId());
+                // 记录需要更新的书籍ID
+                updatedNovelIds.add(tagAudit.getNovelId());
                 approveCount++;
             } else {
                 rejectCount++;
             }
+        }
+
+        // 批量更新书籍的userTags字段
+        for (Long novelId : updatedNovelIds) {
+            updateUserTags(novelId);
         }
 
         result.put("success", true);
@@ -308,5 +315,33 @@ public class TagService {
      */
     public List<String> getAllUserTags() {
         return userTagRepository.findAllTags();
+    }
+
+    /**
+     * 删除标签（用户）
+     */
+    @Transactional
+    public Map<String, Object> deleteTag(Long userId, Long novelId, String tag) {
+        log.info("删除标签: userId={}, novelId={}, tag={}", userId, novelId, tag);
+
+        Map<String, Object> result = new HashMap<>();
+
+        // 检查标签是否存在
+        Optional<UserTag> userTagOpt = userTagRepository.findByUserIdAndNovelIdAndTag(userId, novelId, tag);
+        if (userTagOpt.isEmpty()) {
+            result.put("success", false);
+            result.put("message", "标签不存在");
+            return result;
+        }
+
+        // 删除用户标签
+        userTagRepository.deleteByUserIdAndNovelIdAndTag(userId, novelId, tag);
+
+        // 更新书籍的userTags字段
+        updateUserTags(novelId);
+
+        result.put("success", true);
+        result.put("message", "删除成功");
+        return result;
     }
 }

@@ -32,13 +32,6 @@ public class TagController {
         log.info("添加标签: {}", request);
 
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !authentication.isAuthenticated()) {
-            Map<String, Object> result = new HashMap<>();
-            result.put("success", false);
-            result.put("message", "请先登录");
-            return result;
-        }
-
         Long userId = (Long) authentication.getPrincipal();
         Long novelId = Long.valueOf(request.get("novelId").toString());
         String tag = (String) request.get("tag");
@@ -59,13 +52,6 @@ public class TagController {
         log.info("查询我的标签: page={}, size={}, status={}", page, size, status);
 
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !authentication.isAuthenticated()) {
-            Map<String, Object> result = new HashMap<>();
-            result.put("success", false);
-            result.put("message", "请先登录");
-            return result;
-        }
-
         Long userId = (Long) authentication.getPrincipal();
         return tagService.getMyTags(userId, page, size, status);
     }
@@ -135,5 +121,21 @@ public class TagController {
         result.put("tags", tags);
 
         return result;
+    }
+
+    /**
+     * 删除标签（用户）
+     */
+    @PreAuthorize("isAuthenticated()")
+    @DeleteMapping("/user")
+    public Map<String, Object> deleteTag(@RequestBody Map<String, Object> request) {
+        log.info("删除标签: {}", request);
+
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        Long userId = (Long) authentication.getPrincipal();
+        Long novelId = Long.valueOf(request.get("novelId").toString());
+        String tag = (String) request.get("tag");
+
+        return tagService.deleteTag(userId, novelId, tag);
     }
 }

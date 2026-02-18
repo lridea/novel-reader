@@ -107,7 +107,7 @@ public class Novel {
     /**
      * 用户标签（JSON数组格式）
      */
-    @Column(length = 500)
+    @Column(columnDefinition = "TEXT")
     private String userTags;
 
     /**

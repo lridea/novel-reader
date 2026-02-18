@@ -259,6 +259,11 @@ export const crawlerApi = {
   // 获取所有用户标签
   getAllUserTags() {
     return USE_MOCK ? mockApi.getAllUserTags() : api.get('/tags/user-tags')
+  },
+
+  // 删除标签（用户）
+  deleteTag(data) {
+    return USE_MOCK ? mockApi.deleteTag(data) : api.delete('/tags/user', { data })
   }
 }
 

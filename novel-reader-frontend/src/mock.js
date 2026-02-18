@@ -1458,3 +1458,36 @@ export default mockApi
 
 global.MOCK_TAG_AUDITS = global.MOCK_TAG_AUDITS || []
 global.MOCK_USER_TAGS = global.MOCK_USER_TAGS || []
+
+  async deleteTag(data) {
+    await delay()
+    const { novelId, tag } = data
+
+    if (!global.MOCK_USER_TAGS) {
+      global.MOCK_USER_TAGS = []
+    }
+    const MOCK_USER_TAGS = global.MOCK_USER_TAGS
+
+    // 删除用户标签
+    const index = MOCK_USER_TAGS.findIndex(ut => ut.novelId === novelId && ut.tag === tag)
+    if (index === -1) {
+      throw new Error('标签不存在')
+    }
+
+    MOCK_USER_TAGS.splice(index, 1)
+
+    // 更新书籍的userTags字段
+    const novel = MOCK_NOVELS.find(n => n.id === novelId)
+    if (novel && novel.userTags) {
+      const tagIndex = novel.userTags.indexOf(tag)
+      if (tagIndex > -1) {
+        novel.userTags.splice(tagIndex, 1)
+      }
+    }
+
+    return {
+      success: true,
+      message: '删除成功'
+    }
+  }
+}

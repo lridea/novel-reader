@@ -75,34 +75,6 @@
         style="margin-top: 20px; justify-content: flex-end;"
       />
     </el-card>
-
-    <!-- 审核对话框 -->
-    <el-dialog
-      v-model="auditDialogVisible"
-      :title="auditDialogTitle"
-      width="500px"
-    >
-      <el-form :model="auditForm" label-width="80px">
-        <el-form-item label="审核状态">
-          <el-select v-model="auditForm.status" style="width: 100%;">
-            <el-option label="通过" :value="1"></el-option>
-            <el-option label="拒绝" :value="2"></el-option>
-          </el-select>
-        </el-form-item>
-        <el-form-item label="拒绝原因" v-if="auditForm.status === 2">
-          <el-input
-            v-model="auditForm.reason"
-            type="textarea"
-            :rows="3"
-            placeholder="请输入拒绝原因"
-          />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="auditDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="submitAudit">确定</el-button>
-      </template>
-    </el-dialog>
   </div>
 </template>
 
@@ -125,14 +97,6 @@ const selectedIds = ref([])
 // 查询表单
 const queryForm = ref({
   status: null
-})
-
-// 审核对话框
-const auditDialogVisible = ref(false)
-const auditDialogTitle = ref('')
-const auditForm = ref({
-  status: 1,
-  reason: ''
 })
 
 // 返回
@@ -250,22 +214,6 @@ const batchReject = async () => {
       console.error('批量审核失败:', error)
       ElMessage.error('批量审核失败')
     }
-  }
-}
-
-// 提交审核
-const submitAudit = async () => {
-  try {
-    await crawlerApi.auditTag(auditForm.id, {
-      status: auditForm.status,
-      reason: auditForm.reason
-    })
-    ElMessage.success('审核成功')
-    auditDialogVisible.value = false
-    loadAudits()
-  } catch (error) {
-    console.error('审核失败:', error)
-    ElMessage.error('审核失败')
   }
 }
 

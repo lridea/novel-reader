@@ -33,6 +33,11 @@ public interface TagAuditRepository extends JpaRepository<TagAudit, Long> {
     Page<TagAudit> findByUserIdOrderByCreatedAtDesc(Long userId, Pageable pageable);
 
     /**
+     * 根据用户和审核状态查询（分页）
+     */
+    Page<TagAudit> findByUserIdAndStatusOrderByCreatedAtDesc(Long userId, Integer status, Pageable pageable);
+
+    /**
      * 根据审核状态查询（分页）
      */
     Page<TagAudit> findByStatusOrderByCreatedAtDesc(Integer status, Pageable pageable);
