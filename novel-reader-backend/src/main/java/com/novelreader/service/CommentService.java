@@ -1,7 +1,9 @@
 package com.novelreader.service;
 
 import com.novelreader.entity.Comment;
+import com.novelreader.entity.CommentLike;
 import com.novelreader.entity.Novel;
+import com.novelreader.repository.CommentLikeRepository;
 import com.novelreader.repository.CommentRepository;
 import com.novelreader.repository.NovelRepository;
 import com.novelreader.repository.UserRepository;
@@ -28,6 +30,9 @@ public class CommentService {
     private CommentRepository commentRepository;
 
     @Autowired
+    private CommentLikeRepository commentLikeRepository;
+
+    @Autowired
     private NovelRepository novelRepository;
 
     @Autowired
@@ -35,6 +40,7 @@ public class CommentService {
 
     /**
      * 获取评论列表（分页）
+     * 按点赞数降序展示
      */
     public Map<String, Object> getComments(Long novelId, Integer page, Integer size, Integer floor, Long parentId, Long userId) {
         log.info("获取评论列表: novelId={}, page={}, size={}, floor={}, parentId={}, userId={}", novelId, page, size, floor, parentId, userId);
@@ -49,16 +55,17 @@ public class CommentService {
             return result;
         }
 
-        // 分页查询评论
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        // 分页查询评论（按点赞数降序）
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "likeCount"));
         Page<Comment> commentPage;
 
         if (floor != null && floor == 2 && parentId != null) {
-            // 查询回复
+            // 查询回复（按时间升序）
+            pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, "createdAt"));
             commentPage = commentRepository.findByParentIdAndDeletedOrderByCreatedAtAsc(parentId, 0, pageable);
         } else {
-            // 查询顶层评论
-            commentPage = commentRepository.findByNovelIdAndFloorAndDeletedOrderByCreatedAtDesc(novelId, 1, 0, pageable);
+            // 查询顶层评论（按点赞数降序）
+            commentPage = commentRepository.findByNovelIdAndFloorAndDeletedOrderByLikeCountDesc(novelId, 1, 0, pageable);
         }
 
         // 转换为DTO
@@ -182,8 +189,13 @@ public class CommentService {
             }
         }
 
-        // 当前用户是否已点赞（暂未实现点赞功能）
-        commentInfo.put("liked", false);
+        // 当前用户是否已点赞
+        if (userId != null) {
+            boolean liked = commentLikeRepository.existsByUserIdAndCommentId(userId, comment.getId());
+            commentInfo.put("liked", liked);
+        } else {
+            commentInfo.put("liked", false);
+        }
 
         // 当前用户是否为评论作者
         if (userId != null) {
@@ -193,5 +205,100 @@ public class CommentService {
         }
 
         return commentInfo;
+    }
+
+    /**
+     * 点赞评论
+     */
+    @Transactional
+    public Map<String, Object> likeComment(Long userId, Long commentId) {
+        log.info("点赞评论: userId={}, commentId={}", userId, commentId);
+
+        Map<String, Object> result = new HashMap<>();
+
+        // 检查评论是否存在
+        Optional<Comment> commentOpt = commentRepository.findById(commentId);
+        if (commentOpt.isEmpty()) {
+            result.put("success", false);
+            result.put("message", "评论不存在");
+            return result;
+        }
+
+        Comment comment = commentOpt.get();
+
+        // 检查是否已点赞
+        boolean exists = commentLikeRepository.existsByUserIdAndCommentId(userId, commentId);
+        if (exists) {
+            result.put("success", false);
+            result.put("message", "已点赞该评论");
+            result.put("liked", true);
+            result.put("commentLikeCount", comment.getLikeCount());
+            return result;
+        }
+
+        // 创建点赞记录
+        CommentLike commentLike = new CommentLike();
+        commentLike.setUserId(userId);
+        commentLike.setCommentId(commentId);
+        commentLikeRepository.save(commentLike);
+
+        // 更新评论的点赞数（原子操作）
+        commentRepository.incrementLikeCount(commentId);
+
+        // 重新获取最新的点赞数
+        Comment updatedComment = commentRepository.findById(commentId).orElse(null);
+
+        result.put("success", true);
+        result.put("message", "点赞成功");
+        result.put("liked", true);
+        result.put("commentLikeCount", updatedComment != null ? updatedComment.getLikeCount() : 0);
+
+        return result;
+    }
+
+    /**
+     * 取消点赞评论
+     */
+    @Transactional
+    public Map<String, Object> unlikeComment(Long userId, Long commentId) {
+        log.info("取消点赞评论: userId={}, commentId={}", userId, commentId);
+
+        Map<String, Object> result = new HashMap<>();
+
+        // 检查评论是否存在
+        Optional<Comment> commentOpt = commentRepository.findById(commentId);
+        if (commentOpt.isEmpty()) {
+            result.put("success", false);
+            result.put("message", "评论不存在");
+            return result;
+        }
+
+        Comment comment = commentOpt.get();
+
+        // 检查是否已点赞
+        boolean exists = commentLikeRepository.existsByUserIdAndCommentId(userId, commentId);
+        if (!exists) {
+            result.put("success", false);
+            result.put("message", "未点赞该评论");
+            result.put("liked", false);
+            result.put("commentLikeCount", comment.getLikeCount());
+            return result;
+        }
+
+        // 删除点赞记录
+        commentLikeRepository.deleteByUserIdAndCommentId(userId, commentId);
+
+        // 更新评论的点赞数（原子操作）
+        commentRepository.decrementLikeCount(commentId);
+
+        // 重新获取最新的点赞数
+        Comment updatedComment = commentRepository.findById(commentId).orElse(null);
+
+        result.put("success", true);
+        result.put("message", "取消点赞成功");
+        result.put("liked", false);
+        result.put("commentLikeCount", updatedComment != null ? updatedComment.getLikeCount() : 0);
+
+        return result;
     }
 }

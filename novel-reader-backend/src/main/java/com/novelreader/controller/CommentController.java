@@ -71,4 +71,50 @@ public class CommentController {
 
         return commentService.addComment(user.getId(), novelId, parentId, floor, content);
     }
+
+    /**
+     * 点赞评论
+     */
+    @PostMapping("/{id}/like")
+    public Map<String, Object> likeComment(
+            @PathVariable Long id,
+            Authentication authentication
+    ) {
+        log.info("点赞评论: commentId={}", id);
+
+        // 检查用户是否登录
+        if (authentication == null || !authentication.isAuthenticated()) {
+            Map<String, Object> result = new HashMap<>();
+            result.put("success", false);
+            result.put("message", "请先登录");
+            return result;
+        }
+
+        User user = (User) authentication.getPrincipal();
+
+        return commentService.likeComment(user.getId(), id);
+    }
+
+    /**
+     * 取消点赞评论
+     */
+    @DeleteMapping("/{id}/like")
+    public Map<String, Object> unlikeComment(
+            @PathVariable Long id,
+            Authentication authentication
+    ) {
+        log.info("取消点赞评论: commentId={}", id);
+
+        // 检查用户是否登录
+        if (authentication == null || !authentication.isAuthenticated()) {
+            Map<String, Object> result = new HashMap<>();
+            result.put("success", false);
+            result.put("message", "请先登录");
+            return result;
+        }
+
+        User user = (User) authentication.getPrincipal();
+
+        return commentService.unlikeComment(user.getId(), id);
+    }
 }

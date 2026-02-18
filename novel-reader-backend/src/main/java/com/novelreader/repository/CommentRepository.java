@@ -29,6 +29,16 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
     );
 
     /**
+     * 根据小说ID和楼层分页查询评论（按点赞数降序）
+     */
+    Page<Comment> findByNovelIdAndFloorAndDeletedOrderByLikeCountDesc(
+        Long novelId,
+        Integer floor,
+        Integer deleted,
+        Pageable pageable
+    );
+
+    /**
      * 根据父评论ID分页查询回复
      */
     Page<Comment> findByParentIdAndDeletedOrderByCreatedAtAsc(
