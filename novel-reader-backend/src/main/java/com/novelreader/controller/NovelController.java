@@ -1,8 +1,12 @@
 package com.novelreader.controller;
 
 import com.novelreader.entity.Novel;
+import com.novelreader.entity.TagAudit;
+import com.novelreader.repository.DislikeRepository;
 import com.novelreader.repository.NovelRepository;
+import com.novelreader.repository.TagAuditRepository;
 import com.novelreader.service.NovelService;
+import com.novelreader.service.TagManageService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -17,6 +21,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Slf4j
 @RestController
@@ -28,6 +33,15 @@ public class NovelController {
 
     @Autowired
     private NovelRepository novelRepository;
+
+    @Autowired
+    private TagManageService tagManageService;
+
+    @Autowired
+    private DislikeRepository dislikeRepository;
+
+    @Autowired
+    private TagAuditRepository tagAuditRepository;
 
     @GetMapping("/page")
     public Map<String, Object> getNovelsPage(
@@ -94,25 +108,36 @@ public class NovelController {
             return result;
         }
 
+        // 检查当前用户是否已点踩
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        boolean isDisliked = false;
+        if (authentication != null && authentication.isAuthenticated() && !"anonymousUser".equals(authentication.getPrincipal())) {
+            Long userId = (Long) authentication.getPrincipal();
+            isDisliked = dislikeRepository.existsByUserIdAndNovelId(userId, id);
+        }
+
+        // 获取已审核通过的用户标签
+        List<TagAudit> approvedTags = tagAuditRepository.findByNovelIdAndStatus(id, 1);
+        List<String> userTagList = approvedTags.stream()
+                .map(TagAudit::getTag)
+                .collect(Collectors.toList());
+        
+        log.info("获取小说详情: novelId={}, userTags={}", id, userTagList);
+
+        // 清空 novel 中的 userTags，避免重复
+        novel.setUserTags(null);
+
         result.put("success", true);
         result.put("data", novel);
+        result.put("isDisliked", isDisliked);
+        result.put("userTags", userTagList);
         return result;
     }
 
     @GetMapping("/tags")
     public Map<String, Object> getTags() {
         log.info("获取所有标签");
-        Map<String, Object> result = new HashMap<>();
-        try {
-            List<Map<String, Object>> tags = novelRepository.getAllTags();
-            result.put("success", true);
-            result.put("tags", tags);
-        } catch (Exception e) {
-            log.error("获取标签失败: {}", e.getMessage(), e);
-            result.put("success", false);
-            result.put("message", "获取标签失败: " + e.getMessage());
-        }
-        return result;
+        return tagManageService.getAllTags();
     }
 
     @PreAuthorize("isAuthenticated()")

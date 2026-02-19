@@ -23,6 +23,11 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByEmail(String email);
 
     /**
+     * 根据昵称查找
+     */
+    Optional<User> findByNickname(String nickname);
+
+    /**
      * 检查用户名是否存在
      */
     boolean existsByUsername(String username);
@@ -31,4 +36,9 @@ public interface UserRepository extends JpaRepository<User, Long> {
      * 检查邮箱是否存在
      */
     boolean existsByEmail(String email);
+
+    /**
+     * 检查昵称是否存在
+     */
+    boolean existsByNickname(String nickname);
 }

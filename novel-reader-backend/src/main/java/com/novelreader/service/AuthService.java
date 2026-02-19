@@ -1,20 +1,20 @@
 package com.novelreader.service;
 
+import com.novelreader.entity.FavoriteCategory;
 import com.novelreader.entity.User;
+import com.novelreader.repository.FavoriteCategoryRepository;
 import com.novelreader.repository.UserRepository;
 import com.novelreader.config.JwtUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
-/**
- * 认证服务
- */
 @Slf4j
 @Service
 public class AuthService {
@@ -23,44 +23,54 @@ public class AuthService {
     private UserRepository userRepository;
 
     @Autowired
+    private FavoriteCategoryRepository favoriteCategoryRepository;
+
+    @Autowired
     private PasswordEncoder passwordEncoder;
 
     @Autowired
     private JwtUtil jwtUtil;
 
-    /**
-     * 用户注册
-     */
-    public Map<String, Object> register(String username, String email, String password) {
-        log.info("用户注册: username={}, email={}", username, email);
+    @Transactional
+    public Map<String, Object> register(String username, String nickname, String password) {
+        log.info("用户注册: username={}, nickname={}", username, nickname);
 
         Map<String, Object> result = new HashMap<>();
 
-        // 检查用户名是否已存在
+        if (username == null || !username.matches("^[a-zA-Z][a-zA-Z0-9_-]{3,15}$")) {
+            result.put("success", false);
+            result.put("message", "用户名必须以字母开头，只能包含字母、数字、下划线和横线，长度4-16个字符");
+            return result;
+        }
+
         if (userRepository.existsByUsername(username)) {
             result.put("success", false);
-            result.put("message", "用户名已存在");
+            result.put("message", "用户名已被使用");
             return result;
         }
 
-        // 检查邮箱是否已存在
-        if (userRepository.existsByEmail(email)) {
+        if (userRepository.existsByNickname(nickname)) {
             result.put("success", false);
-            result.put("message", "邮箱已被注册");
+            result.put("message", "昵称已被使用");
             return result;
         }
 
-        // 创建用户
         User user = new User();
         user.setUsername(username);
-        user.setEmail(email);
+        user.setNickname(nickname);
         user.setPassword(passwordEncoder.encode(password));
         user.setRole("USER");
         user.setEnabled(1);
 
         User savedUser = userRepository.save(user);
 
-        // 生成Token
+        FavoriteCategory defaultCategory = new FavoriteCategory();
+        defaultCategory.setUserId(savedUser.getId());
+        defaultCategory.setName("默认收藏夹");
+        defaultCategory.setIsDefault(true);
+        defaultCategory.setSortOrder(0);
+        favoriteCategoryRepository.save(defaultCategory);
+
         String token = jwtUtil.generateToken(savedUser.getId(), savedUser.getUsername(), savedUser.getRole());
 
         result.put("success", true);
@@ -72,18 +82,15 @@ public class AuthService {
     }
 
     /**
-     * 用户登录（支持用户名或邮箱）
+     * 用户登录
      */
-    public Map<String, Object> login(String account, String password) {
-        log.info("用户登录: account={}", account);
+    public Map<String, Object> login(String username, String password) {
+        log.info("用户登录: username={}", username);
 
         Map<String, Object> result = new HashMap<>();
 
-        // 查找用户（支持用户名或邮箱）
-        Optional<User> userOpt = userRepository.findByEmail(account);
-        if (userOpt.isEmpty()) {
-            userOpt = userRepository.findByUsername(account);
-        }
+        // 查找用户
+        Optional<User> userOpt = userRepository.findByUsername(username);
         if (userOpt.isEmpty()) {
             result.put("success", false);
             result.put("message", "用户名或密码错误");

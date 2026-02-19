@@ -8,9 +8,6 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
 
-/**
- * 收藏分类实体
- */
 @Data
 @Entity
 @Table(name = "t_favorite_category", indexes = {
@@ -23,27 +20,18 @@ public class FavoriteCategory {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    /**
-     * 用户ID
-     */
     @Column(nullable = false)
     private Long userId;
 
-    /**
-     * 分类名称
-     */
     @Column(nullable = false, length = 50)
     private String name;
 
-    /**
-     * 描述
-     */
     @Column(length = 200)
     private String description;
 
-    /**
-     * 排序序号
-     */
+    @ColumnDefault("0")
+    private Boolean isDefault = false;
+
     @ColumnDefault("0")
     private Integer sortOrder = 0;
 

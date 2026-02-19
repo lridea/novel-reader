@@ -6,7 +6,7 @@
           <el-icon :size="24"><Reading /></el-icon>
           <span>读书网站</span>
         </div>
-        <div class="search-bar">
+        <div class="search-bar" v-if="!isFavoritesPage">
           <el-input
             v-model="searchKeyword"
             placeholder="搜索书名/作者"
@@ -18,14 +18,15 @@
             </template>
           </el-input>
         </div>
+        <div class="search-bar-placeholder" v-else></div>
         <div class="user-actions">
           <template v-if="user">
             <el-dropdown @command="handleUserCommand">
               <div class="user-info">
                 <el-avatar :size="32" :src="user.avatarUrl">
-                  {{ user.username?.charAt(0)?.toUpperCase() }}
+                  {{ user.nickname?.charAt(0)?.toUpperCase() }}
                 </el-avatar>
-                <span class="username">{{ user.username }}</span>
+                <span class="username">{{ user.nickname || user.username }}</span>
               </div>
               <template #dropdown>
                 <el-dropdown-menu>
@@ -66,7 +67,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { Reading, Search, Star, User, Setting, SwitchButton } from '@element-plus/icons-vue'
 import { crawlerApi } from '../api'
@@ -80,6 +81,10 @@ const user = ref(null)
 
 const isAdmin = computed(() => {
   return user.value?.role === 'ADMIN'
+})
+
+const isFavoritesPage = computed(() => {
+  return route.path === '/favorites'
 })
 
 const goHome = () => {
@@ -120,12 +125,14 @@ const handleUserCommand = (command) => {
 const handleLogout = async () => {
   try {
     await crawlerApi.logout()
+  } catch (error) {
+    console.error('退出登录API调用失败:', error)
+  } finally {
     localStorage.removeItem('token')
+    localStorage.removeItem('user')
     user.value = null
     ElMessage.success('已退出登录')
     router.push('/')
-  } catch (error) {
-    console.error('退出登录失败:', error)
   }
 }
 
@@ -146,8 +153,19 @@ const loadUser = async () => {
       localStorage.setItem('user', JSON.stringify(user.value))
     } catch (error) {
       console.error('获取用户信息失败:', error)
+      // 如果是401或403错误，清除本地存储
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        localStorage.removeItem('token')
+        localStorage.removeItem('user')
+        user.value = null
+      }
     }
   }
+}
+
+// 监听用户信息更新事件
+const handleUserInfoUpdated = (event) => {
+  user.value = event.detail
 }
 
 onMounted(() => {
@@ -155,6 +173,11 @@ onMounted(() => {
   if (route.query.keyword) {
     searchKeyword.value = route.query.keyword
   }
+  window.addEventListener('user-info-updated', handleUserInfoUpdated)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('user-info-updated', handleUserInfoUpdated)
 })
 </script>
 
@@ -202,6 +225,11 @@ onMounted(() => {
   max-width: 500px;
 }
 
+.search-bar-placeholder {
+  flex: 1;
+  max-width: 500px;
+}
+
 .user-actions {
   display: flex;
   align-items: center;
@@ -238,5 +266,35 @@ onMounted(() => {
   color: #909399;
   font-size: 14px;
   border-top: 1px solid #e6e6e6;
+}
+
+/* 移动端适配 */
+@media screen and (max-width: 768px) {
+  .header-content {
+    padding: 10px 12px;
+    gap: 12px;
+  }
+
+  .logo span {
+    display: none;
+  }
+
+  .search-bar {
+    flex: 1;
+    max-width: 100%;
+  }
+
+  .search-bar-placeholder {
+    flex: 1;
+    max-width: 100%;
+  }
+
+  .user-actions {
+    gap: 8px;
+  }
+
+  .username {
+    display: none;
+  }
 }
 </style>

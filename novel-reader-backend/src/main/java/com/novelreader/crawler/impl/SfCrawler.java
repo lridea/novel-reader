@@ -38,7 +38,7 @@ public class SfCrawler implements BaseCrawler {
 
     private static final int MIN_DELAY_MS = 500;
     private static final int MAX_DELAY_MS = 1000;
-    private static final int MAX_PAGES = 10;
+    private static final int MAX_PAGES = 100;
     private static final int MAX_RETRIES = 3;
 
     @Value("${crawler.user-agent}")
@@ -256,6 +256,7 @@ public class SfCrawler implements BaseCrawler {
         Novel novel = new Novel();
         novel.setPlatform(PLATFORM);
         novel.setNovelId(novelId);
+        novel.setSourceUrl("https://book.sfacg.com/Novel/" + novelId);
 
         Element titleElement = doc.select("h1.title .text").first();
         if (titleElement != null) {

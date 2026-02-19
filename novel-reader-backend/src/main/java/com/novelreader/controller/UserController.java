@@ -69,4 +69,23 @@ public class UserController {
 
         return userService.changePassword(userId, oldPassword, newPassword);
     }
+
+    /**
+     * 获取用户统计数据
+     */
+    @GetMapping("/stats")
+    public Map<String, Object> getUserStats() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        if (authentication == null || !authentication.isAuthenticated() ||
+            "anonymousUser".equals(authentication.getPrincipal())) {
+            Map<String, Object> error = new java.util.HashMap<>();
+            error.put("success", false);
+            error.put("message", "未登录");
+            return error;
+        }
+
+        Long userId = (Long) authentication.getPrincipal();
+        return userService.getUserStats(userId);
+    }
 }

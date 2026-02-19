@@ -73,10 +73,11 @@ public class CommentController {
 
         Long novelId = ((Number) request.get("novelId")).longValue();
         Long parentId = request.get("parentId") != null ? ((Number) request.get("parentId")).longValue() : null;
+        Long replyToId = request.get("replyToId") != null ? ((Number) request.get("replyToId")).longValue() : null;
         Integer floor = request.get("floor") != null ? ((Number) request.get("floor")).intValue() : 1;
         String content = (String) request.get("content");
 
-        return commentService.addComment(userId, novelId, parentId, floor, content);
+        return commentService.addComment(userId, novelId, parentId, replyToId, floor, content);
     }
 
     /**

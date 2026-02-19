@@ -38,7 +38,7 @@ public class CiyuanjiCrawler implements BaseCrawler {
 
     private static final int MIN_DELAY_MS = 500;
     private static final int MAX_DELAY_MS = 1000;
-    private static final int MAX_PAGES = 10;
+    private static final int MAX_PAGES = 100;
     private static final int MAX_RETRIES = 3;
 
     @Value("${crawler.user-agent}")
@@ -261,6 +261,7 @@ public class CiyuanjiCrawler implements BaseCrawler {
         Novel novel = new Novel();
         novel.setPlatform(PLATFORM);
         novel.setNovelId(novelId);
+        novel.setSourceUrl(BASE_URL + "/b_d_" + novelId + ".html");
 
         Element titleElement = doc.select(".book_detail_title__d9MAd span").first();
         if (titleElement != null) {

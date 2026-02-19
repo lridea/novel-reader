@@ -25,33 +25,64 @@
           <h2 class="title">{{ novel.title }}</h2>
           <div class="meta-info">
             <el-tag>{{ getPlatformName(novel.platform) }}</el-tag>
-            <span class="author">作者：{{ novel.author || '未知' }}</span>
-            <el-tag :type="getStatusType(novel.status)">
-              {{ getStatusText(novel.status) }}
-            </el-tag>
-            <span class="favorite-count">
-              <el-icon><Star /></el-icon>
-              {{ novel.favoriteCount || 0 }}
-            </span>
-            <span class="comment-count">
-              <el-icon><ChatDotRound /></el-icon>
-              {{ novel.commentCount || 0 }}
-            </span>
+            <div class="author-row">
+              <span class="author">作者：{{ novel.author || '未知' }}</span>
+              <el-tag :type="getStatusType(novel.status)">
+                {{ getStatusText(novel.status) }}
+              </el-tag>
+            </div>
+            <div class="mobile-stats">
+              <span class="favorite-count">
+                <el-icon><Star /></el-icon>
+                {{ novel.favoriteCount || 0 }}
+              </span>
+              <span class="comment-count">
+                <el-icon><ChatDotRound /></el-icon>
+                {{ novel.commentCount || 0 }}
+              </span>
+              <span class="dislike-count">
+                <svg class="dislike-icon" viewBox="0 0 24 24" width="14" height="14" style="transform: rotate(180deg) scaleX(-1);">
+                  <path d="M9 21h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-2c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L14.17 1 7.58 7.59C7.22 7.95 7 8.45 7 9v10c0 1.1.9 2 2 2zM9 9l4.34-4.34L12 10h9v2l-3 7H9V9zM1 9h4v12H1V9z"/>
+                </svg>
+                {{ novel.dislikeCount || 0 }}
+              </span>
+            </div>
           </div>
           <div class="update-info">
             <span>最新章节：{{ novel.latestChapterTitle || '-' }}</span>
             <span style="margin-left: 20px;">更新时间：{{ formatDateTime(novel.latestUpdateTime) }}</span>
           </div>
-          <div class="tags-section" v-if="novel.tags && parseTags(novel.tags).length > 0">
+          <div class="tags-section">
+            <!-- 爬取的标签 -->
             <el-tag
               v-for="tag in parseTags(novel.tags)"
-              :key="tag"
+              :key="'crawl-' + tag"
               size="small"
               type="warning"
               class="novel-tag"
             >
               {{ tag }}
             </el-tag>
+            <!-- 用户申请的标签 -->
+            <el-tag
+              v-for="tag in userTags"
+              :key="'user-' + tag"
+              size="small"
+              type="danger"
+              class="novel-tag"
+            >
+              {{ tag }}
+            </el-tag>
+            <el-button
+              v-if="isLoggedIn"
+              link
+              type="danger"
+              size="small"
+              class="add-tag-btn"
+              @click="showAddTagDialog"
+            >
+              <el-icon><Plus /></el-icon>
+            </el-button>
           </div>
           <div class="description">
             <h4>简介</h4>
@@ -65,6 +96,26 @@
               size="large"
             >
               {{ novel.isFavorite ? '已收藏' : '收藏本书' }}
+            </el-button>
+            <el-button
+              :type="novel.isDisliked ? 'danger' : 'default'"
+              @click="toggleDislike"
+              size="large"
+            >
+              <template #icon>
+                <svg class="dislike-btn-icon" viewBox="0 0 24 24" width="16" height="16" style="transform: rotate(180deg) scaleX(-1);">
+                  <path d="M9 21h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-2c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L14.17 1 7.58 7.59C7.22 7.95 7 8.45 7 9v10c0 1.1.9 2 2 2zM9 9l4.34-4.34L12 10h9v2l-3 7H9V9zM1 9h4v12H1V9z"/>
+                </svg>
+              </template>
+              {{ novel.isDisliked ? '取消点踩' : '点踩' }}
+            </el-button>
+            <el-button
+              v-if="novel.sourceUrl"
+              type="default"
+              size="large"
+              @click="goToSource"
+            >
+              查看源站
             </el-button>
           </div>
         </div>
@@ -121,12 +172,17 @@
             <div class="comment-content">
               <div class="comment-header-row">
                 <span class="username">{{ comment.user.nickname || comment.user.username }}</span>
+                <span class="floor-number">{{ comment.floorNumber }}楼</span>
                 <span class="time">{{ formatTime(comment.createdAt) }}</span>
               </div>
               <div class="comment-text">{{ comment.content }}</div>
               <div class="comment-actions">
                 <span class="action-item" :class="{ liked: comment.liked }" @click="toggleLike(comment)">
-                  <el-icon><StarFilled /></el-icon>
+                  <el-icon>
+                    <svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" width="1em" height="1em">
+                      <path d="M885.9 533.7c16.8-22.2 26.1-49.4 26.1-77.7 0-44.9-25.1-87.4-65.5-111.1a67.67 67.67 0 0 0-34.3-9.3H572.4l6-122.9c1.4-29.7-9.1-57.9-29.5-79.4-20.5-21.5-48.1-33.4-77.9-33.4-52.8 0-98.1 38.8-105.1 90.6l-26.3 184.9H176.3c-37.5 0-68 30.5-68 68v352c0 37.5 30.5 68 68 68h523.9c6.9 0 13.8-1.1 20.3-3.2 28.3-9.4 52.5-27.7 69.5-52.1l95.9-134.6z" fill="currentColor"/>
+                    </svg>
+                  </el-icon>
                   <span>{{ comment.likeCount || 0 }}</span>
                 </span>
                 <span class="action-item" @click="showReplyInput(comment)">
@@ -146,7 +202,7 @@
                 v-model="replyInputContent"
                 type="textarea"
                 :rows="2"
-                :placeholder="`回复 ${comment.user.nickname || comment.user.username}...`"
+                placeholder="输入回复..."
                 maxlength="500"
                 resize="none"
                 ref="replyInputRef"
@@ -172,19 +228,54 @@
             <div v-if="comment.replies && comment.replies.length > 0">
               <div class="reply-item" v-for="reply in comment.replies" :key="reply.id">
                 <el-avatar :src="reply.user.avatar || '/default-avatar.png'" :size="28" class="reply-avatar" />
-                <div class="reply-content">
-                  <div class="reply-header-row">
-                    <span class="username">{{ reply.user.nickname || reply.user.username }}</span>
-                    <span class="reply-arrow">回复</span>
-                    <span class="target-user">@{{ reply.parentUser.nickname || reply.parentUser.username }}</span>
-                    <span class="time">{{ formatTime(reply.createdAt) }}</span>
+                <div class="reply-content-wrapper">
+                  <div class="reply-content">
+                    <div class="reply-header-row">
+                      <span class="username">{{ reply.user.nickname || reply.user.username }}</span>
+                      <span class="floor-number reply-floor">{{ reply.replyFloorNumber }}楼</span>
+                      <template v-if="reply.replyToUser">
+                        <span class="reply-arrow">回复</span>
+                        <span class="target-user">@{{ reply.replyToUser.nickname || reply.replyToUser.username }} {{ reply.replyToUser.floorNumber }}楼</span>
+                      </template>
+                      <span class="time">{{ formatTime(reply.createdAt) }}</span>
+                    </div>
+                    <div class="reply-text">{{ reply.content }}</div>
+                    <div class="reply-actions">
+                      <span class="action-item" :class="{ liked: reply.liked }" @click="toggleLike(reply)">
+                        <el-icon>
+                          <svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" width="1em" height="1em">
+                            <path d="M885.9 533.7c16.8-22.2 26.1-49.4 26.1-77.7 0-44.9-25.1-87.4-65.5-111.1a67.67 67.67 0 0 0-34.3-9.3H572.4l6-122.9c1.4-29.7-9.1-57.9-29.5-79.4-20.5-21.5-48.1-33.4-77.9-33.4-52.8 0-98.1 38.8-105.1 90.6l-26.3 184.9H176.3c-37.5 0-68 30.5-68 68v352c0 37.5 30.5 68 68 68h523.9c6.9 0 13.8-1.1 20.3-3.2 28.3-9.4 52.5-27.7 69.5-52.1l95.9-134.6z" fill="currentColor"/>
+                          </svg>
+                        </el-icon>
+                        <span>{{ reply.likeCount || 0 }}</span>
+                      </span>
+                      <span class="action-item reply-btn" @click="showReplyToReplyInput(comment, reply)">
+                        回复
+                      </span>
+                    </div>
                   </div>
-                  <div class="reply-text">{{ reply.content }}</div>
-                  <div class="reply-actions">
-                    <span class="action-item" :class="{ liked: reply.liked }" @click="toggleLike(reply)">
-                      <el-icon><StarFilled /></el-icon>
-                      <span>{{ reply.likeCount || 0 }}</span>
-                    </span>
+                  <!-- 回复的回复输入框 - 显示在该条回复下方 -->
+                  <div v-if="activeReplyToReply && activeReplyToReply.parentCommentId === comment.id && activeReplyToReply.replyId === reply.id" class="reply-to-reply-input">
+                    <div class="reply-input-hint">回复 @{{ activeReplyToReply.targetUser.nickname || activeReplyToReply.targetUser.username }}：</div>
+                    <el-input
+                      v-if="isLoggedIn"
+                      v-model="replyToReplyContent"
+                      type="textarea"
+                      :rows="2"
+                      placeholder="输入回复..."
+                      maxlength="500"
+                      resize="none"
+                      @keydown.enter.prevent="submitReplyToReply"
+                    />
+                    <div v-else class="reply-input-login" @click="goToLogin">
+                      <span class="login-hint">请先</span>
+                      <span class="login-btn-text">登录</span>
+                      <span class="login-hint">后回复 (·ω·)</span>
+                    </div>
+                    <div v-if="isLoggedIn" class="reply-input-actions">
+                      <el-button size="small" @click="cancelReplyToReply">取消</el-button>
+                      <el-button type="primary" size="small" @click="submitReplyToReply" :disabled="!replyToReplyContent.trim()">发送</el-button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -227,8 +318,9 @@
         <!-- 空状态 -->
         <el-empty v-if="topLevelComments.length === 0 && !commentsLoading" description="暂无评论" />
 
-        <!-- 分页 -->
+        <!-- PC端分页 -->
         <el-pagination
+          v-if="!isMobile"
           v-model:current-page="commentPage"
           v-model:page-size="commentPageSize"
           :total="totalComments"
@@ -236,8 +328,19 @@
           layout="total, sizes, prev, pager, next, jumper"
           @size-change="loadComments"
           @current-change="loadComments"
-          style="margin-top: 20px; justify-content: flex-end;"
+          style="margin-top: 20px; justify-content: center;"
         />
+
+        <!-- 移动端加载状态 -->
+        <div v-if="isMobile && topLevelComments.length > 0 && commentsLoading" class="loading-more-comments">
+          <el-icon class="is-loading"><ArrowDown /></el-icon>
+          <span>加载中...</span>
+        </div>
+
+        <!-- 移动端没有更多 -->
+        <div v-if="isMobile && topLevelComments.length > 0 && !commentsLoading && topLevelComments.length >= totalComments" class="no-more-comments">
+          没有更多评论了
+        </div>
       </div>
 
     </el-card>
@@ -282,7 +385,7 @@
             type="textarea"
             :rows="4"
             placeholder="请输入评论内容..."
-            maxlength="500"
+            maxlength="2000"
             show-word-limit
           />
         </el-form-item>
@@ -317,14 +420,76 @@
         <el-button type="primary" @click="submitReply">发表</el-button>
       </template>
     </el-dialog>
+
+    <el-dialog
+      v-model="showCategoryDialog"
+      title="选择收藏夹"
+      width="400px"
+    >
+      <div class="category-buttons">
+        <el-button
+          v-for="category in categories"
+          :key="category.id"
+          :type="selectedCategoryId === category.id ? 'primary' : 'default'"
+          class="category-btn"
+          @click="selectedCategoryId = category.id"
+        >
+          <span class="category-name">{{ category.name }}</span>
+          <span class="category-count">({{ category.favoriteCount || 0 }}本)</span>
+        </el-button>
+      </div>
+      <template #footer>
+        <el-button @click="showCategoryDialog = false">取消</el-button>
+        <el-button type="primary" @click="confirmAddFavorite">确定</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 添加标签对话框 -->
+    <el-dialog
+      v-model="addTagDialogVisible"
+      title="申请添加标签"
+      width="400px"
+    >
+      <el-form>
+        <el-form-item label="标签名称">
+          <el-input
+            v-model="newTagName"
+            placeholder="请输入标签名称"
+            :maxlength="MAX_TAG_LENGTH"
+            show-word-limit
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="addTagDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="submitTag">提交</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 登录提示弹窗 -->
+    <el-dialog
+      v-model="showLoginDialog"
+      title="提示"
+      width="300px"
+      :show-close="false"
+      :close-on-click-modal="false"
+    >
+      <div class="login-dialog-content">
+        <p>请先登录后再进行此操作</p>
+      </div>
+      <template #footer>
+        <el-button @click="showLoginDialog = false">取消</el-button>
+        <el-button type="primary" @click="goToLogin">去登录</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Picture, Star, StarFilled, ChatDotRound, ArrowDown, ArrowLeft } from '@element-plus/icons-vue'
+import { Picture, Star, StarFilled, ChatDotRound, ArrowDown, ArrowLeft, Plus } from '@element-plus/icons-vue'
 import { crawlerApi, favoriteApi } from '../api'
 
 const route = useRoute()
@@ -345,8 +510,18 @@ const novel = ref({
   status: 1,
   favoriteCount: 0,
   commentCount: 0,
-  isFavorite: null
+  dislikeCount: 0,
+  isFavorite: null,
+  isDisliked: false
 })
+
+// 用户申请的标签列表
+const userTags = ref([])
+
+// 添加标签对话框
+const addTagDialogVisible = ref(false)
+const newTagName = ref('')
+const MAX_TAG_LENGTH = 9
 
 // 评论相关数据
 const commentsLoading = ref(false)
@@ -354,6 +529,12 @@ const topLevelComments = ref([])
 const totalComments = ref(0)
 const commentPage = ref(1)
 const commentPageSize = ref(10)
+
+// 移动端检测
+const isMobile = ref(false)
+const checkMobile = () => {
+  isMobile.value = window.innerWidth <= 768
+}
 
 // 当前用户头像
 const userAvatar = ref('')
@@ -372,13 +553,41 @@ const activeReplyComment = ref(null)
 const replyInputContent = ref('')
 const replyInputRef = ref(null)
 
+// 回复的回复相关
+const activeReplyToReply = ref(null)
+const replyToReplyContent = ref('')
+
 // 登录状态
 const isLoggedIn = ref(false)
+const showLoginDialog = ref(false)
+
+// 收藏夹相关
+const categories = ref([])
+const showCategoryDialog = ref(false)
+const selectedCategoryId = ref(null)
 
 // 检查登录状态
 const checkLoginStatus = () => {
   const token = localStorage.getItem('token')
   isLoggedIn.value = !!token
+}
+
+// 加载收藏夹列表
+const loadCategories = async () => {
+  try {
+    const response = await crawlerApi.getCategories()
+    if (response && response.success) {
+      // 将默认收藏夹排在第一位
+      const list = response.categories || []
+      categories.value = list.sort((a, b) => {
+        if (a.isDefault && !b.isDefault) return -1
+        if (!a.isDefault && b.isDefault) return 1
+        return 0
+      })
+    }
+  } catch (error) {
+    console.error('加载收藏夹失败:', error)
+  }
 }
 
 // 跳转到登录页
@@ -449,11 +658,57 @@ const parseTags = (tagsStr) => {
   }
 }
 
+// 判断是否为用户的标签
+const isUserTag = (tag) => {
+  return userTags.value.includes(tag)
+}
+
+// 显示添加标签对话框
+const showAddTagDialog = () => {
+  newTagName.value = ''
+  addTagDialogVisible.value = true
+}
+
+// 提交标签申请
+const submitTag = async () => {
+  const tag = newTagName.value.trim()
+  if (!tag) {
+    ElMessage.warning('请输入标签名称')
+    return
+  }
+  if (tag.length > MAX_TAG_LENGTH) {
+    ElMessage.warning(`标签名称不能超过${MAX_TAG_LENGTH}个字符`)
+    return
+  }
+  
+  try {
+    const response = await crawlerApi.addTag({
+      novelId: novel.value.id,
+      tag: tag
+    })
+    if (response && response.success) {
+      ElMessage.success(response.message)
+      addTagDialogVisible.value = false
+      newTagName.value = ''
+    } else {
+      ElMessage.error(response?.message || '提交失败')
+    }
+  } catch (error) {
+    console.error('提交标签失败:', error)
+    ElMessage.error('提交失败')
+  }
+}
+
 const goBack = () => {
-  router.push('/')
+  router.back()
 }
 
 const toggleFavorite = async (row) => {
+  if (!isLoggedIn.value) {
+    showLoginDialog.value = true
+    return
+  }
+
   try {
     if (row.isFavorite) {
       const response = await favoriteApi.removeFavorite(row.id)
@@ -465,18 +720,58 @@ const toggleFavorite = async (row) => {
         ElMessage.error(response.message || '取消收藏失败')
       }
     } else {
-      const response = await favoriteApi.addFavorite({ novelId: row.id, note: '' })
-      if (response && response.success) {
-        row.isFavorite = true
-        row.favoriteCount = (row.favoriteCount || 0) + 1
-        ElMessage.success('收藏成功')
+      if (categories.value.length === 0) {
+        await loadCategories()
+      }
+      
+      if (categories.value.length === 1) {
+        const response = await favoriteApi.addFavorite({ 
+          novelId: row.id, 
+          categoryId: categories.value[0].id,
+          note: '' 
+        })
+        if (response && response.success) {
+          row.isFavorite = true
+          row.favoriteCount = (row.favoriteCount || 0) + 1
+          ElMessage.success('收藏成功')
+        } else {
+          ElMessage.error(response.message || '收藏失败')
+        }
       } else {
-        ElMessage.error(response.message || '收藏失败')
+        selectedCategoryId.value = categories.value.find(c => c.isDefault)?.id || categories.value[0]?.id
+        showCategoryDialog.value = true
       }
     }
   } catch (error) {
     console.error('切换收藏失败:', error)
     ElMessage.error('操作失败')
+  }
+}
+
+const confirmAddFavorite = async () => {
+  try {
+    const response = await favoriteApi.addFavorite({ 
+      novelId: novel.value.id, 
+      categoryId: selectedCategoryId.value,
+      note: '' 
+    })
+    if (response && response.success) {
+      novel.value.isFavorite = true
+      novel.value.favoriteCount = (novel.value.favoriteCount || 0) + 1
+      showCategoryDialog.value = false
+      ElMessage.success('收藏成功')
+    } else {
+      ElMessage.error(response.message || '收藏失败')
+    }
+  } catch (error) {
+    console.error('收藏失败:', error)
+    ElMessage.error('收藏失败')
+  }
+}
+
+const goToSource = () => {
+  if (novel.value.sourceUrl) {
+    window.open(novel.value.sourceUrl, '_blank')
   }
 }
 
@@ -487,6 +782,9 @@ const loadData = async () => {
     if (response && response.success && response.data) {
       novel.value = response.data
       novel.value.isFavorite = false
+      novel.value.isDisliked = response.isDisliked || false
+      // 从 response.userTags 解析用户标签（后端在根级别返回）
+      userTags.value = response.userTags || []
       loadComments()
       checkFavoriteStatus(novelId)
     } else {
@@ -509,31 +807,85 @@ const checkFavoriteStatus = async (novelId) => {
   }
 }
 
+// 点踩/取消点踩
+const toggleDislike = async () => {
+  if (!isLoggedIn.value) {
+    showLoginDialog.value = true
+    return
+  }
+
+  try {
+    let response
+    if (novel.value.isDisliked) {
+      response = await crawlerApi.undislikeNovel(novel.value.id)
+    } else {
+      response = await crawlerApi.dislikeNovel(novel.value.id)
+    }
+
+    if (response && response.success) {
+      novel.value.isDisliked = response.disliked
+      novel.value.dislikeCount = response.dislikeCount
+      ElMessage.success(response.message)
+    } else {
+      ElMessage.error(response?.message || '操作失败')
+    }
+  } catch (error) {
+    console.error('点踩操作失败:', error)
+    ElMessage.error('操作失败')
+  }
+}
+
 // 加载评论
-const loadComments = async () => {
+const loadComments = async (preserveState = false, append = false) => {
   if (!novel.value.id) {
     return
   }
   commentsLoading.value = true
   try {
+    // 保存当前展开状态
+    const stateMap = new Map()
+    if (preserveState) {
+      topLevelComments.value.forEach(c => {
+        stateMap.set(c.id, {
+          showReplies: c.showReplies,
+          replyPage: c.replyPage,
+          replyTotalPages: c.replyTotalPages
+        })
+      })
+    }
+
     const response = await crawlerApi.getComments(novel.value.id, {
       page: commentPage.value - 1,
       size: commentPageSize.value,
       floor: 1
     })
     if (response) {
-      topLevelComments.value = (response.content || []).map(comment => ({
-        ...comment,
-        showReplies: false,
-        replyPage: 1,
-        replyTotalPages: 1,
-        replies: []
-      }))
+      const newComments = (response.content || []).map(comment => {
+        const savedState = stateMap.get(comment.id)
+        return {
+          ...comment,
+          showReplies: savedState?.showReplies || false,
+          replyPage: savedState?.replyPage || 1,
+          replyTotalPages: savedState?.replyTotalPages || 1,
+          replies: []
+        }
+      })
+      
+      if (append) {
+        topLevelComments.value = [...topLevelComments.value, ...newComments]
+      } else {
+        topLevelComments.value = newComments
+      }
       totalComments.value = response.totalElements || 0
-      // 默认加载2条回复
-      for (const comment of topLevelComments.value) {
+      
+      // 恢复展开状态或默认加载2条回复
+      for (const comment of newComments) {
         if (comment.replyCount > 0) {
-          await loadReplyPage(comment, 1, 2)
+          if (comment.showReplies) {
+            await loadReplyPage(comment, comment.replyPage, 10)
+          } else {
+            await loadReplyPage(comment, 1, 2)
+          }
         }
       }
     }
@@ -541,6 +893,15 @@ const loadComments = async () => {
     console.error('加载评论失败:', error)
   } finally {
     commentsLoading.value = false
+  }
+}
+
+// 移动端加载更多评论
+const loadMoreComments = () => {
+  if (commentsLoading.value) return
+  if (topLevelComments.value.length < totalComments.value) {
+    commentPage.value++
+    loadComments(false, true)
   }
 }
 
@@ -656,7 +1017,55 @@ const submitReplyInput = async () => {
       novel.value.commentCount = response.novelCommentCount || 0
       activeReplyComment.value = null
       replyInputContent.value = ''
-      loadComments()
+      loadComments(true)
+    } else {
+      ElMessage.error(response.message || '回复失败')
+    }
+  } catch (error) {
+    console.error('回复失败:', error)
+    ElMessage.error('回复失败')
+  }
+}
+
+// 显示回复的回复输入框
+const showReplyToReplyInput = (parentComment, reply) => {
+  activeReplyToReply.value = {
+    parentCommentId: parentComment.id,
+    targetUser: reply.user,
+    replyId: reply.id
+  }
+  replyToReplyContent.value = ''
+    // 自动聚焦输入框
+  setTimeout(() => {
+    replyToReplyInputRef.value?.focus()
+  }, 100)
+}
+
+// 取消回复的回复
+const cancelReplyToReply = () => {
+  activeReplyToReply.value = null
+  replyToReplyContent.value = ''
+}
+
+// 提交回复的回复
+const submitReplyToReply = async () => {
+  if (!replyToReplyContent.value.trim() || !activeReplyToReply.value) {
+    return
+  }
+  try {
+    const response = await crawlerApi.addComment({
+      novelId: novel.value.id,
+      parentId: activeReplyToReply.value.parentCommentId,
+      replyToId: activeReplyToReply.value.replyId,
+      floor: 2,
+      content: replyToReplyContent.value
+    })
+    if (response && response.success) {
+      ElMessage.success('回复成功')
+      novel.value.commentCount = response.novelCommentCount || 0
+      activeReplyToReply.value = null
+      replyToReplyContent.value = ''
+      loadComments(true)
     } else {
       ElMessage.error(response.message || '回复失败')
     }
@@ -692,7 +1101,7 @@ const submitReply = async () => {
       novel.value.commentCount = response.novelCommentCount || 0
       replyDialogVisible.value = false
       resetReplyForm()
-      loadComments()
+      loadComments(true)
     } else {
       ElMessage.error(response.message || '回复失败')
     }
@@ -737,23 +1146,22 @@ const formatTime = (time) => {
 const toggleLike = async (comment) => {
   try {
     let response
+    const commentId = comment.id
     if (comment.liked) {
       // 取消点赞
-      response = await crawlerApi.unlikeComment(comment.id)
+      response = await crawlerApi.unlikeComment(commentId)
       if (response && response.success) {
         ElMessage.success('取消点赞成功')
-        comment.liked = false
-        comment.likeCount = response.commentLikeCount || 0
+        updateCommentLike(commentId, false, response.commentLikeCount)
       } else {
         ElMessage.error(response.message || '取消点赞失败')
       }
     } else {
       // 点赞
-      response = await crawlerApi.likeComment(comment.id)
+      response = await crawlerApi.likeComment(commentId)
       if (response && response.success) {
         ElMessage.success('点赞成功')
-        comment.liked = true
-        comment.likeCount = response.commentLikeCount || 0
+        updateCommentLike(commentId, true, response.commentLikeCount)
       } else {
         ElMessage.error(response.message || '点赞失败')
       }
@@ -764,14 +1172,36 @@ const toggleLike = async (comment) => {
   }
 }
 
-onMounted(() => {
-  loadData()
-  checkLoginStatus()
-  // 添加滚动监听
-  window.addEventListener('scroll', handleScroll)
-})
+// 更新评论点赞状态
+const updateCommentLike = (commentId, liked, likeCount) => {
+  // 在顶层评论中查找
+  for (let i = 0; i < topLevelComments.value.length; i++) {
+    const comment = topLevelComments.value[i]
+    if (comment.id === commentId) {
+      topLevelComments.value[i] = {
+        ...comment,
+        liked: liked,
+        likeCount: likeCount !== undefined ? likeCount : comment.likeCount
+      }
+      return
+    }
+    // 在回复中查找
+    if (comment.replies) {
+      for (let j = 0; j < comment.replies.length; j++) {
+        if (comment.replies[j].id === commentId) {
+          comment.replies[j] = {
+            ...comment.replies[j],
+            liked: liked,
+            likeCount: likeCount !== undefined ? likeCount : comment.replies[j].likeCount
+          }
+          return
+        }
+      }
+    }
+  }
+}
 
-// 滚动处理 - 当滚动到评论区时显示悬浮输入框
+// 滚动处理 - 当滚动到评论区时显示悬浮输入框，移动端自动加载更多评论
 const handleScroll = () => {
   const commentSection = document.querySelector('.comment-list')
   if (commentSection) {
@@ -779,7 +1209,33 @@ const handleScroll = () => {
     // 当评论区进入视口且顶部评论输入框不在视口时显示悬浮框
     showStickyInput.value = rect.top < 0 && rect.bottom > 200
   }
+  
+  // 移动端自动加载更多评论
+  if (isMobile.value) {
+    const scrollTop = window.scrollY || document.documentElement.scrollTop
+    const windowHeight = window.innerHeight
+    const documentHeight = document.documentElement.scrollHeight
+    
+    if (scrollTop + windowHeight >= documentHeight - 100) {
+      loadMoreComments()
+    }
+  }
 }
+
+onMounted(() => {
+  // 重置页面滚动位置到顶部
+  window.scrollTo(0, 0)
+  checkMobile()
+  window.addEventListener('resize', checkMobile)
+  window.addEventListener('scroll', handleScroll)
+  loadData()
+  checkLoginStatus()
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', checkMobile)
+  window.removeEventListener('scroll', handleScroll)
+})
 
 // 提交悬浮评论
 const submitStickyComment = async () => {
@@ -891,6 +1347,18 @@ const submitTopComment = async () => {
   margin-bottom: 12px;
 }
 
+.mobile-stats {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.author-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .author {
   color: #606266;
 }
@@ -911,6 +1379,22 @@ const submitTopComment = async () => {
   gap: 4px;
 }
 
+.dislike-count {
+  color: #909399;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.dislike-icon {
+  fill: currentColor;
+}
+
+.dislike-btn-icon {
+  fill: currentColor;
+}
+
 .update-info {
   color: #909399;
   font-size: 14px;
@@ -926,6 +1410,11 @@ const submitTopComment = async () => {
 
 .novel-tag {
   cursor: default;
+}
+
+.add-tag-btn {
+  font-weight: bold;
+  font-size: 16px;
 }
 
 .description {
@@ -1156,6 +1645,14 @@ const submitTopComment = async () => {
   font-weight: 500;
 }
 
+.comment-header-row .floor-number {
+  color: #9499a0;
+  font-size: 12px;
+  background: #f4f5f7;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
 .comment-header-row .time {
   color: #9499a0;
   font-size: 12px;
@@ -1231,6 +1728,12 @@ const submitTopComment = async () => {
   flex-shrink: 0;
 }
 
+.reply-content-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
 .reply-content {
   flex: 1;
   min-width: 0;
@@ -1248,6 +1751,14 @@ const submitTopComment = async () => {
   color: #61666d;
   font-weight: 500;
   font-size: 13px;
+}
+
+.reply-header-row .floor-number.reply-floor {
+  color: #9499a0;
+  font-size: 11px;
+  background: #f4f5f7;
+  padding: 1px 4px;
+  border-radius: 3px;
 }
 
 .reply-arrow {
@@ -1282,6 +1793,7 @@ const submitTopComment = async () => {
 /* 回复输入框 */
 .reply-input-section {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   gap: 12px;
   margin: 16px 0 16px 56px;
@@ -1292,6 +1804,12 @@ const submitTopComment = async () => {
 
 .reply-input-wrapper {
   flex: 1;
+  min-width: 0;
+}
+
+.reply-input-section .reply-input-actions {
+  width: 100%;
+  margin-left: 44px;
 }
 
 .reply-input-hint {
@@ -1335,6 +1853,34 @@ const submitTopComment = async () => {
   display: flex;
   gap: 8px;
   margin-top: 8px;
+  justify-content: flex-end;
+}
+
+/* 回复的回复输入框 */
+.reply-to-reply-input {
+  margin: 12px 0 0 0;
+  padding: 12px;
+  background: #f4f5f7;
+  border-radius: 8px;
+}
+
+.reply-to-reply-input .reply-input-hint {
+  font-size: 13px;
+  color: #61666d;
+  margin-bottom: 8px;
+}
+
+.reply-to-reply-input .reply-input-actions {
+  justify-content: flex-end;
+}
+
+.reply-actions .reply-btn {
+  color: #9499a0;
+  font-size: 13px;
+}
+
+.reply-actions .reply-btn:hover {
+  color: #00a1d6;
 }
 
 .more-replies {
@@ -1418,5 +1964,277 @@ const submitTopComment = async () => {
 
 .reply-page-collapse:hover {
   color: #00a1d6;
+}
+
+.category-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 10px 0;
+}
+
+.login-dialog-content {
+  text-align: center;
+  padding: 20px 0;
+}
+
+.login-dialog-content p {
+  margin: 0;
+  color: #606266;
+  font-size: 14px;
+}
+
+.category-btn {
+  min-width: 120px;
+  padding: 12px 20px;
+  height: auto;
+  border-radius: 8px;
+  transition: all 0.3s;
+}
+
+.category-btn .category-name {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.category-btn .category-count {
+  font-size: 12px;
+  margin-left: 6px;
+  opacity: 0.8;
+}
+
+/* 移动端适配 */
+@media screen and (max-width: 768px) {
+  .novel-detail {
+    padding: 0 12px;
+  }
+
+  .novel-info {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .cover-section {
+    display: flex;
+    justify-content: center;
+  }
+
+  .image-placeholder {
+    width: 120px;
+    height: 160px;
+  }
+
+  .info-section {
+    width: 100%;
+  }
+
+  .title {
+    font-size: 18px;
+    margin-bottom: 12px;
+    text-align: center;
+  }
+
+  .meta-info {
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .meta-info .author-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .meta-info .author {
+    margin-bottom: 0;
+    text-align: center;
+  }
+
+  .meta-info .el-tag {
+    margin-right: 0;
+  }
+
+  .meta-info .mobile-stats {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+  }
+
+  .meta-info .favorite-count,
+  .meta-info .comment-count,
+  .meta-info .dislike-count {
+    margin-left: 0;
+  }
+
+  .update-info {
+    text-align: center;
+    font-size: 12px;
+  }
+
+  .tags-section {
+    justify-content: center;
+  }
+
+  .description {
+    margin-top: 12px;
+  }
+
+  .action-section {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .action-section .el-button {
+    width: 100%;
+    margin: 0;
+  }
+
+  /* 评论区移动端适配 */
+  .comment-input-section {
+    padding: 12px 0;
+    gap: 8px;
+  }
+
+  .comment-main {
+    gap: 12px;
+  }
+
+  .reply-list {
+    margin-left: 0;
+    padding: 8px 12px;
+  }
+
+  .reply-input-section {
+    margin-left: 0;
+    padding: 12px;
+  }
+
+  .reply-expand,
+  .reply-pagination {
+    margin-left: 0;
+  }
+
+  .comment-input-sticky {
+    padding: 8px 12px;
+  }
+
+  .sticky-content {
+    padding: 0;
+  }
+
+  /* 收藏夹选择器移动端适配 */
+  .category-buttons {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px 0;
+  }
+
+  .category-btn {
+    min-width: auto;
+    padding: 8px 16px;
+  }
+
+  /* 修复内容溢出 */
+  .novel-content {
+    padding: 0 12px;
+  }
+
+  /* 修复评论内容溢出 */
+  .comment-text {
+    word-break: break-all;
+  }
+
+  .reply-text {
+    word-break: break-all;
+  }
+
+  /* 修复标签区域溢出 */
+  .tags-section {
+    flex-wrap: wrap;
+    overflow-x: visible;
+  }
+
+  /* 修复操作按钮溢出 */
+  .action-section {
+    padding: 0 12px;
+  }
+
+  /* 修复评论区溢出 */
+  .comment-section {
+    padding: 0 12px;
+  }
+
+  /* 修复回复输入框溢出 */
+  .reply-input-section {
+    margin-left: 0;
+    margin-right: 0;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+  }
+
+  .reply-input-section .el-avatar {
+    display: none;
+  }
+
+  .reply-input-wrapper {
+    width: 100%;
+  }
+
+  .reply-input-section .reply-input-actions {
+    width: 100%;
+    margin-left: 0;
+    justify-content: flex-end;
+    margin-top: 8px;
+  }
+
+  /* 修复回复输入框中的登录提示 */
+  .reply-input-section .reply-input-login {
+    width: 100%;
+    height: 44px;
+    min-height: 44px;
+    flex: none;
+  }
+
+  /* 修复悬浮评论框 */
+  .comment-input-sticky {
+    left: 0;
+    right: 0;
+  }
+
+  .sticky-content {
+    padding: 0 12px;
+  }
+
+  /* 移动端加载更多评论样式 */
+  .loading-more-comments,
+  .no-more-comments {
+    text-align: center;
+    padding: 16px;
+    color: #909399;
+    font-size: 14px;
+  }
+
+  .loading-more-comments {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .loading-more-comments .el-icon {
+    animation: rotate 1s linear infinite;
+  }
+
+  @keyframes rotate {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
 }
 </style>

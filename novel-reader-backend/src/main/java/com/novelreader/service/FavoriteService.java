@@ -1,7 +1,9 @@
 package com.novelreader.service;
 
 import com.novelreader.entity.Favorite;
+import com.novelreader.entity.FavoriteCategory;
 import com.novelreader.entity.Novel;
+import com.novelreader.repository.FavoriteCategoryRepository;
 import com.novelreader.repository.FavoriteRepository;
 import com.novelreader.repository.NovelRepository;
 import lombok.extern.slf4j.Slf4j;
@@ -19,9 +21,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-/**
- * 收藏服务
- */
 @Slf4j
 @Service
 public class FavoriteService {
@@ -30,18 +29,17 @@ public class FavoriteService {
     private FavoriteRepository favoriteRepository;
 
     @Autowired
+    private FavoriteCategoryRepository favoriteCategoryRepository;
+
+    @Autowired
     private NovelRepository novelRepository;
 
-    /**
-     * 添加收藏
-     */
     @Transactional
-    public Map<String, Object> addFavorite(Long userId, Long novelId, String note) {
-        log.info("添加收藏: userId={}, novelId={}", userId, novelId);
+    public Map<String, Object> addFavorite(Long userId, Long novelId, Long categoryId, String note) {
+        log.info("添加收藏: userId={}, novelId={}, categoryId={}", userId, novelId, categoryId);
 
         Map<String, Object> result = new HashMap<>();
 
-        // 检查小说是否存在
         Optional<Novel> novelOpt = novelRepository.findById(novelId);
         if (novelOpt.isEmpty()) {
             result.put("success", false);
@@ -51,17 +49,30 @@ public class FavoriteService {
 
         Novel novel = novelOpt.get();
 
-        // 检查是否已收藏
-        if (favoriteRepository.existsByUserIdAndNovelId(userId, novelId)) {
+        if (categoryId == null) {
+            List<FavoriteCategory> categories = favoriteCategoryRepository.findByUserIdOrderBySortOrderAsc(userId);
+            if (!categories.isEmpty()) {
+                categoryId = categories.get(0).getId();
+            }
+        } else {
+            Optional<FavoriteCategory> categoryOpt = favoriteCategoryRepository.findById(categoryId);
+            if (categoryOpt.isEmpty() || !categoryOpt.get().getUserId().equals(userId)) {
+                result.put("success", false);
+                result.put("message", "收藏夹不存在");
+                return result;
+            }
+        }
+
+        if (favoriteRepository.existsByUserIdAndNovelIdAndCategoryId(userId, novelId, categoryId)) {
             result.put("success", false);
-            result.put("message", "已收藏该小说");
+            result.put("message", "已收藏该小说到此收藏夹");
             return result;
         }
 
-        // 创建收藏
         Favorite favorite = new Favorite();
         favorite.setUserId(userId);
         favorite.setNovelId(novelId);
+        favorite.setCategoryId(categoryId);
         favorite.setPlatform(novel.getPlatform());
         favorite.setPlatformNovelId(novel.getNovelId());
         favorite.setNote(note);
@@ -71,10 +82,8 @@ public class FavoriteService {
 
         Favorite savedFavorite = favoriteRepository.save(favorite);
 
-        // 使用原子操作更新收藏数（解决并发问题）
         novelRepository.incrementFavoriteCount(novelId);
 
-        // 重新获取最新的收藏数
         Novel updatedNovel = novelRepository.findById(novelId).orElse(null);
 
         result.put("success", true);
@@ -85,29 +94,33 @@ public class FavoriteService {
         return result;
     }
 
-    /**
-     * 取消收藏
-     */
     @Transactional
-    public Map<String, Object> removeFavorite(Long userId, Long novelId) {
-        log.info("取消收藏: userId={}, novelId={}", userId, novelId);
+    public Map<String, Object> removeFavorite(Long userId, Long novelId, Long categoryId) {
+        log.info("取消收藏: userId={}, novelId={}, categoryId={}", userId, novelId, categoryId);
 
         Map<String, Object> result = new HashMap<>();
 
-        // 检查是否已收藏
-        if (!favoriteRepository.existsByUserIdAndNovelId(userId, novelId)) {
-            result.put("success", false);
-            result.put("message", "未收藏该小说");
-            return result;
+        if (categoryId == null) {
+            List<Favorite> favorites = favoriteRepository.findByUserIdAndNovelIdIn(userId, List.of(novelId));
+            if (favorites.isEmpty()) {
+                result.put("success", false);
+                result.put("message", "未收藏该小说");
+                return result;
+            }
+            for (Favorite favorite : favorites) {
+                favoriteRepository.delete(favorite);
+                novelRepository.decrementFavoriteCount(novelId);
+            }
+        } else {
+            if (!favoriteRepository.existsByUserIdAndNovelIdAndCategoryId(userId, novelId, categoryId)) {
+                result.put("success", false);
+                result.put("message", "未收藏该小说到此收藏夹");
+                return result;
+            }
+            favoriteRepository.deleteByUserIdAndNovelIdAndCategoryId(userId, novelId, categoryId);
+            novelRepository.decrementFavoriteCount(novelId);
         }
 
-        // 使用原子操作更新收藏数（解决并发问题）
-        novelRepository.decrementFavoriteCount(novelId);
-
-        // 删除收藏
-        favoriteRepository.deleteByUserIdAndNovelId(userId, novelId);
-
-        // 重新获取最新的收藏数
         Novel updatedNovel = novelRepository.findById(novelId).orElse(null);
 
         result.put("success", true);
@@ -117,16 +130,35 @@ public class FavoriteService {
         return result;
     }
 
-    /**
-     * 获取收藏列表
-     */
-    public Map<String, Object> getFavoriteList(Long userId, int page, int size) {
-        log.info("获取收藏列表: userId={}, page={}, size={}", userId, page, size);
+    public Map<String, Object> getFavoriteList(Long userId, Long categoryId, int page, int size, String sortBy, String keyword) {
+        log.info("获取收藏列表: userId={}, categoryId={}, page={}, size={}, sortBy={}, keyword={}", userId, categoryId, page, size, sortBy, keyword);
 
         Map<String, Object> result = new HashMap<>();
 
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-        Page<Favorite> favoritePage = favoriteRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable);
+        Sort sort;
+        if ("updateTime".equals(sortBy)) {
+            sort = Sort.by(Sort.Direction.DESC, "latestUpdateTime");
+        } else {
+            sort = Sort.by(Sort.Direction.DESC, "createdAt");
+        }
+        Pageable pageable = PageRequest.of(page, size, sort);
+        Page<Favorite> favoritePage;
+
+        boolean hasKeyword = keyword != null && !keyword.trim().isEmpty();
+
+        if (categoryId != null) {
+            if (hasKeyword) {
+                favoritePage = favoriteRepository.findByUserIdAndCategoryIdAndNovelTitleContaining(userId, categoryId, keyword.trim(), pageable);
+            } else {
+                favoritePage = favoriteRepository.findByUserIdAndCategoryId(userId, categoryId, pageable);
+            }
+        } else {
+            if (hasKeyword) {
+                favoritePage = favoriteRepository.findByUserIdAndNovelTitleContaining(userId, keyword.trim(), pageable);
+            } else {
+                favoritePage = favoriteRepository.findByUserId(userId, pageable);
+            }
+        }
 
         result.put("success", true);
         result.put("content", favoritePage.getContent().stream().map(this::toFavoriteInfo).toList());

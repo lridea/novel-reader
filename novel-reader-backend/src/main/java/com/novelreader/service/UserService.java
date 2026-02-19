@@ -1,6 +1,8 @@
 package com.novelreader.service;
 
 import com.novelreader.entity.User;
+import com.novelreader.repository.CommentRepository;
+import com.novelreader.repository.FavoriteRepository;
 import com.novelreader.repository.UserRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,15 +13,18 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
-/**
- * 用户服务
- */
 @Slf4j
 @Service
 public class UserService {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private FavoriteRepository favoriteRepository;
+
+    @Autowired
+    private CommentRepository commentRepository;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -129,5 +134,30 @@ public class UserService {
         userInfo.put("createdAt", user.getCreatedAt());
         userInfo.put("lastLoginTime", user.getLastLoginTime());
         return userInfo;
+    }
+
+    /**
+     * 获取用户统计数据
+     */
+    public Map<String, Object> getUserStats(Long userId) {
+        log.info("获取用户统计数据: userId={}", userId);
+
+        Map<String, Object> result = new HashMap<>();
+
+        Optional<User> userOpt = userRepository.findById(userId);
+        if (userOpt.isEmpty()) {
+            result.put("success", false);
+            result.put("message", "用户不存在");
+            return result;
+        }
+
+        long favoriteCount = favoriteRepository.countByUserId(userId);
+        long commentCount = commentRepository.countByUserIdAndDeleted(userId, 0);
+
+        result.put("success", true);
+        result.put("favoriteCount", favoriteCount);
+        result.put("commentCount", commentCount);
+
+        return result;
     }
 }

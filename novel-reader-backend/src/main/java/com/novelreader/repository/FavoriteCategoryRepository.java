@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * 收藏分类 Repository
@@ -16,4 +17,14 @@ public interface FavoriteCategoryRepository extends JpaRepository<FavoriteCatego
      * 根据用户ID查询分类（按排序序号）
      */
     List<FavoriteCategory> findByUserIdOrderBySortOrderAsc(Long userId);
+
+    /**
+     * 根据用户ID和名称查询分类
+     */
+    Optional<FavoriteCategory> findByUserIdAndName(Long userId, String name);
+
+    /**
+     * 检查用户是否已有同名分类
+     */
+    boolean existsByUserIdAndName(Long userId, String name);
 }

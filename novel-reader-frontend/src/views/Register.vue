@@ -8,11 +8,11 @@
       
       <el-form ref="formRef" :model="form" :rules="rules" label-position="top">
         <el-form-item label="用户名" prop="username">
-          <el-input v-model="form.username" placeholder="请输入用户名" />
+          <el-input v-model="form.username" placeholder="请输入用户名（用于登录）" />
         </el-form-item>
         
-        <el-form-item label="邮箱" prop="email">
-          <el-input v-model="form.email" placeholder="请输入邮箱" />
+        <el-form-item label="昵称" prop="nickname">
+          <el-input v-model="form.nickname" placeholder="请输入昵称（用于展示）" />
         </el-form-item>
         
         <el-form-item label="密码" prop="password">
@@ -62,7 +62,7 @@ const loading = ref(false)
 
 const form = reactive({
   username: '',
-  email: '',
+  nickname: '',
   password: '',
   confirmPassword: ''
 })
@@ -78,11 +78,11 @@ const validateConfirmPassword = (rule, value, callback) => {
 const rules = {
   username: [
     { required: true, message: '请输入用户名', trigger: 'blur' },
-    { min: 3, max: 20, message: '用户名长度为3-20个字符', trigger: 'blur' }
+    { pattern: /^[a-zA-Z][a-zA-Z0-9_-]{3,15}$/, message: '用户名必须以字母开头，只能包含字母、数字、下划线和横线，长度4-16个字符', trigger: 'blur' }
   ],
-  email: [
-    { required: true, message: '请输入邮箱', trigger: 'blur' },
-    { type: 'email', message: '请输入有效的邮箱地址', trigger: 'blur' }
+  nickname: [
+    { required: true, message: '请输入昵称', trigger: 'blur' },
+    { min: 2, max: 20, message: '昵称长度为2-20个字符', trigger: 'blur' }
   ],
   password: [
     { required: true, message: '请输入密码', trigger: 'blur' },
@@ -104,7 +104,7 @@ const handleRegister = async () => {
     try {
       await crawlerApi.register({
         username: form.username,
-        email: form.email,
+        nickname: form.nickname,
         password: form.password
       })
       ElMessage.success('注册成功，请登录')

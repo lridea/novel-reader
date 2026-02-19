@@ -7,16 +7,24 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * 全局异常处理器
- */
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<Map<String, Object>> handleMaxUploadSizeExceededException(MaxUploadSizeExceededException e) {
+        log.warn("文件大小超过限制: {}", e.getMessage());
+        Map<String, Object> result = new HashMap<>();
+        result.put("success", false);
+        result.put("message", "文件大小超过限制，最大支持2MB");
+        result.put("code", "FILE_TOO_LARGE");
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(result);
+    }
 
     /**
      * 处理权限不足异常

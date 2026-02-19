@@ -1,7 +1,70 @@
 <template>
   <div class="favorites-page">
     <div class="container">
-      <h2 class="page-title">我的收藏</h2>
+      <div class="page-header">
+        <h2 class="page-title">我的收藏</h2>
+        <el-button type="primary" @click="showCategoryManager = true">
+          管理收藏夹
+        </el-button>
+      </div>
+
+      <div class="toolbar">
+        <div class="category-selector" v-if="categories.length > 0">
+          <div class="selected-category" @click="toggleCategoryExpand">
+            <span class="category-name">{{ currentCategory?.name || '选择收藏夹' }}</span>
+            <span class="category-badge">{{ currentCategory?.favoriteCount || 0 }}</span>
+            <el-icon class="expand-icon" :class="{ expanded: isCategoryExpanded }"><ArrowDown /></el-icon>
+          </div>
+          <div class="category-dropdown" v-show="isCategoryExpanded">
+            <div
+              v-for="category in categories"
+              :key="category.id"
+              :class="['category-option', currentCategoryId === category.id ? 'active' : '']"
+              @click="selectCategory(category.id)"
+            >
+              <span class="category-name">{{ category.name }}</span>
+              <span class="category-badge">{{ category.favoriteCount || 0 }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="filter-bar">
+          <div class="search-wrapper">
+            <el-input
+              v-model="searchKeyword"
+              placeholder="搜索书籍名称"
+              class="search-input"
+              clearable
+              @clear="handleSearch"
+              @keyup.enter="handleSearch"
+            >
+              <template #prefix>
+                <el-icon><Search /></el-icon>
+              </template>
+            </el-input>
+            <el-button type="primary" @click="handleSearch">搜索</el-button>
+          </div>
+          <div class="sort-wrapper">
+            <span class="sort-label">排序：</span>
+            <div class="sort-buttons-wrapper">
+              <el-button-group class="sort-buttons">
+                <el-button
+                  :type="sortBy === 'createdAt' ? 'primary' : 'default'"
+                  @click="setSortBy('createdAt')"
+                >
+                  收藏时间
+                </el-button>
+                <el-button
+                  :type="sortBy === 'updateTime' ? 'primary' : 'default'"
+                  @click="setSortBy('updateTime')"
+                >
+                  更新时间
+                </el-button>
+              </el-button-group>
+            </div>
+          </div>
+        </div>
+      </div>
       
       <div v-loading="loading" class="novel-grid">
         <div
@@ -20,7 +83,14 @@
             <h3 class="title">{{ novel.title }}</h3>
             <p class="author">{{ novel.author }}</p>
             <div class="meta">
-              <span>{{ formatDate(novel.latestUpdateTime) }}</span>
+              <span class="meta-item">
+                <el-icon><Timer /></el-icon>
+                更新：{{ formatDate(novel.latestUpdateTime) }}
+              </span>
+              <span class="meta-item">
+                <el-icon><Calendar /></el-icon>
+                收藏：{{ formatDate(novel.createdAt) }}
+              </span>
             </div>
             <p v-if="novel.note" class="note">{{ novel.note }}</p>
           </div>
@@ -38,26 +108,99 @@
         </el-empty>
       </div>
 
-      <div v-if="total > 0" class="pagination">
+      <div v-if="total > 0 && !isMobile" class="pagination">
         <el-pagination
           v-model:current-page="currentPage"
           v-model:page-size="pageSize"
           :total="total"
           :page-sizes="[20, 40, 60]"
           layout="total, sizes, prev, pager, next"
-          @current-change="loadData"
-          @size-change="loadData"
+          @current-change="handlePageChange"
+          @size-change="handlePageChange"
         />
       </div>
+
+      <div v-if="isMobile && favorites.length > 0 && loading" class="loading-more">
+        加载中...
+      </div>
+      <div v-if="isMobile && favorites.length > 0 && !loading && favorites.length >= total" class="no-more">
+        没有更多了
+      </div>
     </div>
+
+    <el-dialog
+      v-model="showCategoryManager"
+      title="收藏夹管理"
+      width="600px"
+    >
+      <div class="category-manager">
+        <div class="category-list">
+          <div v-for="category in categories" :key="category.id" class="category-item">
+            <div class="category-info">
+              <span class="category-name">{{ category.name }}</span>
+              <el-tag v-if="category.isDefault" size="small" type="success" class="default-tag">默认</el-tag>
+              <span class="category-count">{{ category.favoriteCount || 0 }}本</span>
+            </div>
+            <div class="category-actions">
+              <el-button 
+                link 
+                type="primary" 
+                size="small"
+                @click="editCategory(category)"
+                :disabled="category.isDefault"
+              >
+                编辑
+              </el-button>
+              <el-button 
+                link 
+                type="danger" 
+                size="small"
+                @click="deleteCategory(category.id)"
+                :disabled="category.isDefault"
+              >
+                删除
+              </el-button>
+            </div>
+          </div>
+        </div>
+        <el-divider />
+        <div class="new-category-section">
+          <span class="new-category-label">新建收藏夹</span>
+          <div class="new-category-input-row">
+            <el-input v-model="newCategoryForm.name" placeholder="收藏夹名称" class="new-category-input" maxlength="9" show-word-limit />
+            <el-button type="primary" @click="createCategory">创建</el-button>
+          </div>
+        </div>
+      </div>
+    </el-dialog>
+
+    <el-dialog
+      v-model="showEditCategory"
+      title="编辑收藏夹"
+      width="450px"
+    >
+      <el-form :model="editCategoryForm" label-width="60px">
+        <el-form-item label="名称">
+          <el-input v-model="editCategoryForm.name" placeholder="请输入收藏夹名称" maxlength="9" show-word-limit />
+        </el-form-item>
+        <el-form-item label="描述">
+          <el-input v-model="editCategoryForm.description" type="textarea" :rows="3" placeholder="请输入收藏夹描述（可选）" maxlength="200" show-word-limit />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showEditCategory = false">取消</el-button>
+        <el-button type="primary" @click="updateCategory">保存</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { crawlerApi, favoriteApi } from '../api'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Search, Timer, Calendar, ArrowDown } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const loading = ref(false)
@@ -65,6 +208,123 @@ const favorites = ref([])
 const total = ref(0)
 const currentPage = ref(1)
 const pageSize = ref(20)
+
+const categories = ref([])
+const currentCategoryId = ref(null)
+const isCategoryExpanded = ref(false)
+
+const showCategoryManager = ref(false)
+const showEditCategory = ref(false)
+const newCategoryForm = ref({ name: '' })
+const editCategoryForm = ref({ id: null, name: '', description: '' })
+
+const searchKeyword = ref('')
+const sortBy = ref('createdAt')
+
+// 移动端检测
+const isMobile = ref(false)
+const checkMobile = () => {
+  isMobile.value = window.innerWidth <= 768
+}
+
+// 保存滚动位置和分页数据
+const saveScrollPosition = () => {
+  sessionStorage.setItem('favoritesScrollPosition', window.scrollY.toString())
+  sessionStorage.setItem('favoritesCurrentPage', currentPage.value.toString())
+  sessionStorage.setItem('favoritesTotal', total.value.toString())
+  sessionStorage.setItem('favoritesCategoryId', currentCategoryId.value?.toString() || '')
+  
+  // 移动端额外保存已加载的数据
+  if (isMobile.value) {
+    sessionStorage.setItem('favoritesData', JSON.stringify(favorites.value))
+  }
+}
+
+// 恢复滚动位置和分页数据
+const restoreScrollPosition = async () => {
+  const savedPosition = sessionStorage.getItem('favoritesScrollPosition')
+  const savedPage = sessionStorage.getItem('favoritesCurrentPage')
+  const savedTotal = sessionStorage.getItem('favoritesTotal')
+  const savedData = sessionStorage.getItem('favoritesData')
+  const savedCategoryId = sessionStorage.getItem('favoritesCategoryId')
+  
+  if (savedPage) {
+    currentPage.value = parseInt(savedPage)
+  }
+  
+  if (savedTotal) {
+    total.value = parseInt(savedTotal)
+  }
+  
+  if (savedCategoryId) {
+    currentCategoryId.value = parseInt(savedCategoryId)
+  }
+  
+  // 移动端直接恢复缓存数据，PC端重新加载
+  if (isMobile.value && savedData) {
+    favorites.value = JSON.parse(savedData)
+  } else if (savedPage) {
+    // PC端重新加载对应页的数据
+    await loadData(false)
+  }
+  
+  if (savedPosition) {
+    setTimeout(() => {
+      window.scrollTo(0, parseInt(savedPosition))
+    }, 100)
+  }
+  
+  // 清理缓存
+  sessionStorage.removeItem('favoritesScrollPosition')
+  sessionStorage.removeItem('favoritesCurrentPage')
+  sessionStorage.removeItem('favoritesData')
+  sessionStorage.removeItem('favoritesTotal')
+  sessionStorage.removeItem('favoritesCategoryId')
+}
+
+// 滚动监听 - 移动端自动加载更多
+const handleScroll = () => {
+  if (!isMobile.value) return
+  
+  const scrollTop = window.scrollY || document.documentElement.scrollTop
+  const windowHeight = window.innerHeight
+  const documentHeight = document.documentElement.scrollHeight
+  
+  // 距离底部 100px 时触发加载
+  if (scrollTop + windowHeight >= documentHeight - 100) {
+    loadMore()
+  }
+}
+
+// 移动端加载更多
+const loadMore = () => {
+  if (loading.value) return
+  if (favorites.value.length >= total.value) return
+  
+  currentPage.value++
+  loadData(true)
+}
+
+// PC端分页处理
+const handlePageChange = () => {
+  loadData(false)
+}
+
+// 清除缓存并加载数据
+const clearCacheAndLoad = () => {
+  sessionStorage.removeItem('favoritesScrollPosition')
+  sessionStorage.removeItem('favoritesCurrentPage')
+  sessionStorage.removeItem('favoritesData')
+  sessionStorage.removeItem('favoritesTotal')
+  sessionStorage.removeItem('favoritesCategoryId')
+  
+  currentPage.value = 1
+  loadData(false)
+}
+
+const currentCategory = computed(() => {
+  return categories.value.find(c => c.id === currentCategoryId.value)
+})
 
 const defaultCover = 'https://via.placeholder.com/150x200?text=No+Cover'
 
@@ -81,10 +341,11 @@ const getPlatformName = (platform) => {
 const formatDate = (dateStr) => {
   if (!dateStr) return ''
   const date = new Date(dateStr)
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}:${String(date.getSeconds()).padStart(2, '0')}`
 }
 
 const goDetail = (id) => {
+  saveScrollPosition()
   router.push(`/novel/${id}`)
 }
 
@@ -92,14 +353,49 @@ const goHome = () => {
   router.push('/')
 }
 
-const loadData = async () => {
+const loadCategories = async () => {
+  try {
+    const response = await crawlerApi.getCategories()
+    if (response && response.success) {
+      let list = response.categories || []
+      // 默认收藏夹置顶
+      list.sort((a, b) => {
+        if (a.isDefault && !b.isDefault) return -1
+        if (!a.isDefault && b.isDefault) return 1
+        return a.sortOrder - b.sortOrder
+      })
+      categories.value = list
+      if (categories.value.length > 0 && !currentCategoryId.value) {
+        currentCategoryId.value = categories.value[0].id
+      }
+    }
+  } catch (error) {
+    console.error('加载收藏夹失败:', error)
+  }
+}
+
+const loadData = async (append = false) => {
   loading.value = true
   try {
-    const response = await favoriteApi.getFavorites({
+    const params = {
       page: currentPage.value - 1,
       size: pageSize.value
-    })
-    favorites.value = response.content || []
+    }
+    if (currentCategoryId.value) {
+      params.categoryId = currentCategoryId.value
+    }
+    if (sortBy.value) {
+      params.sortBy = sortBy.value
+    }
+    if (searchKeyword.value && searchKeyword.value.trim()) {
+      params.keyword = searchKeyword.value.trim()
+    }
+    const response = await favoriteApi.getFavorites(params)
+    if (append) {
+      favorites.value = [...favorites.value, ...(response.content || [])]
+    } else {
+      favorites.value = response.content || []
+    }
     total.value = response.totalElements || 0
   } catch (error) {
     console.error('加载收藏失败:', error)
@@ -108,13 +404,36 @@ const loadData = async () => {
   }
 }
 
+const selectCategory = (categoryId) => {
+  currentCategoryId.value = categoryId
+  currentPage.value = 1
+  isCategoryExpanded.value = false
+  clearCacheAndLoad()
+}
+
+const toggleCategoryExpand = () => {
+  isCategoryExpanded.value = !isCategoryExpanded.value
+}
+
+const handleSearch = () => {
+  currentPage.value = 1
+  clearCacheAndLoad()
+}
+
+const setSortBy = (value) => {
+  sortBy.value = value
+  currentPage.value = 1
+  clearCacheAndLoad()
+}
+
 const removeFavorite = async (novelId) => {
   try {
     await ElMessageBox.confirm('确定要取消收藏吗？', '提示', {
       type: 'warning'
     })
-    await favoriteApi.removeFavorite(novelId)
+    await favoriteApi.removeFavorite(novelId, currentCategoryId.value)
     ElMessage.success('已取消收藏')
+    loadCategories()
     loadData()
   } catch (error) {
     if (error !== 'cancel') {
@@ -123,8 +442,101 @@ const removeFavorite = async (novelId) => {
   }
 }
 
-onMounted(() => {
-  loadData()
+const createCategory = async () => {
+  if (!newCategoryForm.value.name.trim()) {
+    ElMessage.warning('请输入收藏夹名称')
+    return
+  }
+  try {
+    const response = await crawlerApi.createCategory({
+      name: newCategoryForm.value.name,
+      description: ''
+    })
+    if (response && response.success) {
+      ElMessage.success('创建成功')
+      newCategoryForm.value.name = ''
+      loadCategories()
+    } else {
+      ElMessage.error(response.message || '创建失败')
+    }
+  } catch (error) {
+    console.error('创建收藏夹失败:', error)
+    ElMessage.error('创建失败')
+  }
+}
+
+const editCategory = (category) => {
+  editCategoryForm.value = {
+    id: category.id,
+    name: category.name,
+    description: category.description || ''
+  }
+  showEditCategory.value = true
+}
+
+const updateCategory = async () => {
+  if (!editCategoryForm.value.name.trim()) {
+    ElMessage.warning('请输入收藏夹名称')
+    return
+  }
+  try {
+    const response = await crawlerApi.updateCategory(editCategoryForm.value.id, {
+      name: editCategoryForm.value.name,
+      description: editCategoryForm.value.description
+    })
+    if (response && response.success) {
+      ElMessage.success('更新成功')
+      showEditCategory.value = false
+      loadCategories()
+    } else {
+      ElMessage.error(response.message || '更新失败')
+    }
+  } catch (error) {
+    console.error('更新收藏夹失败:', error)
+    ElMessage.error('更新失败')
+  }
+}
+
+const deleteCategory = async (categoryId) => {
+  try {
+    await ElMessageBox.confirm('删除收藏夹后，其中的书籍将移至默认收藏夹，确定删除吗？', '提示', {
+      type: 'warning'
+    })
+    const response = await crawlerApi.deleteCategory(categoryId)
+    if (response && response.success) {
+      ElMessage.success('删除成功')
+      if (currentCategoryId.value === categoryId) {
+        currentCategoryId.value = categories.value.find(c => c.isDefault)?.id || categories.value[0]?.id
+      }
+      loadCategories()
+      loadData()
+    } else {
+      ElMessage.error(response.message || '删除失败')
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('删除收藏夹失败:', error)
+    }
+  }
+}
+
+onMounted(async () => {
+  checkMobile()
+  window.addEventListener('resize', checkMobile)
+  window.addEventListener('scroll', handleScroll)
+  
+  await loadCategories()
+  
+  // 检查是否有缓存的分页数据
+  const savedPage = sessionStorage.getItem('favoritesCurrentPage')
+  
+  if (savedPage) {
+    // 有缓存数据，恢复状态
+    await restoreScrollPosition()
+  } else {
+    // 无缓存数据，正常加载
+    loadData(false)
+  }
 })
 </script>
 
@@ -140,11 +552,212 @@ onMounted(() => {
   padding: 0 24px;
 }
 
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
 .page-title {
   font-size: 24px;
   font-weight: 600;
   color: #303133;
-  margin: 0 0 20px 0;
+  margin: 0;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.category-selector {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.selected-category {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 8px;
+  background: #409eff;
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+  width: fit-content;
+  min-width: 150px;
+}
+
+.selected-category .category-name {
+  font-weight: 500;
+}
+
+.selected-category .category-badge {
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.25);
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.selected-category .expand-icon {
+  margin-left: auto;
+  transition: transform 0.3s;
+}
+
+.selected-category .expand-icon.expanded {
+  transform: rotate(180deg);
+}
+
+.category-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  padding: 8px;
+  min-width: 200px;
+  z-index: 100;
+}
+
+.category-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.category-option:hover {
+  background: #f5f7fa;
+}
+
+.category-option.active {
+  background: #ecf5ff;
+  color: #409eff;
+}
+
+.category-option .category-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.category-option .category-badge {
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: #f0f2f5;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #909399;
+  flex-shrink: 0;
+}
+
+.category-option.active .category-badge {
+  background: #409eff;
+  color: #fff;
+}
+
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.filter-bar .search-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.filter-bar .search-input {
+  width: 500px;
+}
+
+.filter-bar .sort-buttons {
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.sort-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sort-label {
+  font-size: 14px;
+  color: #606266;
+  white-space: nowrap;
+}
+
+.sort-buttons-wrapper {
+  display: inline-flex;
+}
+
+.category-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 20px;
+  background: #fff;
+  color: #606266;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s;
+  border: 1px solid #dcdfe6;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.category-tab:hover {
+  background: #f5f7fa;
+  color: #409eff;
+  border-color: #c6e2ff;
+}
+
+.category-tab.active {
+  background: #409eff;
+  color: #fff;
+  border-color: #409eff;
+  box-shadow: 0 2px 6px rgba(64, 158, 255, 0.3);
+}
+
+.category-tab .category-name {
+  font-weight: 500;
+}
+
+.category-tab .category-badge {
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.3);
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.category-tab.active .category-badge {
+  background: rgba(255, 255, 255, 0.25);
 }
 
 .novel-grid {
@@ -231,6 +844,15 @@ onMounted(() => {
   font-size: 12px;
   color: #909399;
   margin-bottom: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.meta-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .note {
@@ -254,5 +876,405 @@ onMounted(() => {
   margin-top: 24px;
   display: flex;
   justify-content: center;
+}
+
+.loading-more,
+.no-more {
+  text-align: center;
+  padding: 16px;
+  color: #909399;
+  font-size: 14px;
+}
+
+.category-manager {
+  min-height: auto;
+}
+
+.category-list {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.category-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.category-item:last-child {
+  border-bottom: none;
+}
+
+.category-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.category-name {
+  font-size: 14px;
+  font-weight: 500;
+  min-width: 80px;
+}
+
+.category-info .default-tag {
+  flex-shrink: 0;
+}
+
+.category-count {
+  font-size: 12px;
+  color: #909399;
+  min-width: 40px;
+}
+
+.category-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.new-category-section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+}
+
+.new-category-label {
+  font-size: 14px;
+  color: #606266;
+  width: 80px;
+  text-align: left;
+  flex-shrink: 0;
+}
+
+.new-category-input {
+  flex: 1;
+}
+
+/* 移动端适配 */
+@media screen and (max-width: 768px) {
+  .favorites-page {
+    padding: 0 12px;
+  }
+
+  .page-header {
+    flex-direction: row;
+    gap: 12px;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 12px;
+  }
+
+  .page-header h2 {
+    font-size: 18px;
+  }
+
+  .filter-bar {
+    flex-direction: column;
+    gap: 12px;
+    flex: none;
+  }
+
+  .filter-bar .category-selector {
+    width: 100%;
+  }
+
+  .filter-bar .search-wrapper {
+    width: 100%;
+  }
+
+  .filter-bar .search-input {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .filter-bar .sort-buttons {
+    margin-left: 0;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .filter-bar .sort-buttons .el-button {
+    flex-shrink: 0;
+  }
+
+  .category-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 8px;
+    padding: 4px 0;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .category-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .category-tab {
+    flex-shrink: 0;
+    padding: 6px 12px;
+    font-size: 13px;
+  }
+
+  .novel-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .novel-card {
+    display: flex;
+    flex-direction: row;
+    height: auto;
+  }
+
+  .cover-wrapper {
+    width: 100px;
+    height: 140px;
+    flex-shrink: 0;
+  }
+
+  .cover {
+    height: 100%;
+  }
+
+  .platform-tag {
+    top: 4px;
+    left: 4px;
+    font-size: 10px;
+    padding: 1px 4px;
+  }
+
+  .info {
+    flex: 1;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .title {
+    font-size: 14px;
+    margin-bottom: 4px;
+  }
+
+  .author {
+    font-size: 12px;
+    margin-bottom: 4px;
+  }
+
+  .meta {
+    margin-top: auto;
+    margin-bottom: 4px;
+  }
+
+  .actions {
+    padding: 0 8px 8px;
+    position: absolute;
+    top: 8px;
+    right: 8px;
+  }
+
+  .actions .el-button {
+    padding: 4px 8px;
+    font-size: 12px;
+  }
+
+  /* 收藏夹管理弹窗移动端适配 */
+  :deep(.el-dialog) {
+    width: 90% !important;
+    max-width: 400px;
+    margin: 10vh auto 0 !important;
+  }
+
+  :deep(.el-dialog__body) {
+    padding: 12px;
+  }
+
+  .category-item {
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-start;
+    padding: 10px 0;
+  }
+
+  .category-info {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .category-info .category-name {
+    min-width: auto;
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .category-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .new-category-section {
+    flex-direction: column;
+    gap: 8px;
+    align-items: stretch;
+  }
+
+  .new-category-label {
+    display: none;
+  }
+
+  .new-category-input-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .new-category-input {
+    flex: 1;
+    width: auto;
+  }
+
+  .new-category-section .el-button {
+    flex-shrink: 0;
+  }
+
+  /* 编辑收藏夹弹窗移动端适配 */
+  :deep(.el-dialog__wrapper) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* 搜索和排序区域移动端适配 */
+  .toolbar {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .toolbar .category-selector {
+    width: 100%;
+  }
+
+  .toolbar .selected-category {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .toolbar .filter-bar {
+    width: 100%;
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-start;
+    flex: none;
+  }
+
+  .toolbar .search-wrapper {
+    width: 100%;
+    flex-wrap: nowrap;
+  }
+
+  .toolbar .search-input {
+    flex: 1;
+    width: auto;
+  }
+
+  .toolbar .sort-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 4px;
+    width: auto;
+  }
+
+  .toolbar .sort-label {
+    font-size: 13px;
+    flex-shrink: 0;
+  }
+
+  .toolbar .sort-buttons-wrapper {
+    display: inline-flex;
+  }
+
+  .toolbar .sort-buttons {
+    margin-left: 0 !important;
+    flex-shrink: 0;
+  }
+
+  .toolbar .sort-buttons .el-button {
+    margin-left: 0 !important;
+  }
+
+  /* 书籍卡片移动端适配 - 参考首页样式 */
+  .novel-card {
+    display: flex;
+    flex-direction: row;
+    padding: 6px;
+    position: relative;
+  }
+
+  .cover-wrapper {
+    width: 75px;
+    height: 100px;
+    flex-shrink: 0;
+  }
+
+  .info {
+    flex: 1;
+    padding: 0 0 0 8px;
+    min-width: 0;
+  }
+
+  .title {
+    font-size: 14px;
+    margin-bottom: 2px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding-right: 70px;
+  }
+
+  .author {
+    font-size: 11px;
+    color: #909399;
+    margin-bottom: 2px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .meta {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: 11px;
+    color: #909399;
+    margin-top: auto;
+    margin-bottom: 0;
+  }
+
+  .meta-item {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .note {
+    font-size: 11px;
+    margin-top: 4px;
+    padding: 4px 6px;
+  }
 }
 </style>

@@ -151,13 +151,28 @@ export const crawlerApi = {
     return USE_MOCK ? mockApi.changePassword(data) : api.put('/users/password', data)
   },
 
+  getUserStats() {
+    return USE_MOCK ? mockApi.getUserStats() : api.get('/users/stats')
+  },
+
+  uploadAvatar(file) {
+    const formData = new FormData()
+    formData.append('file', file)
+    return api.post('/upload/avatar', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
+  },
+
   // 收藏相关API
   addFavorite(data) {
     return USE_MOCK ? mockApi.addFavorite(data) : api.post('/favorites', data)
   },
 
-  removeFavorite(novelId) {
-    return USE_MOCK ? mockApi.removeFavorite(novelId) : api.delete(`/favorites/${novelId}`)
+  removeFavorite(novelId, categoryId) {
+    const params = categoryId ? { categoryId } : {}
+    return USE_MOCK ? mockApi.removeFavorite(novelId) : api.delete(`/favorites/${novelId}`, { params })
   },
 
   getFavorites(params) {

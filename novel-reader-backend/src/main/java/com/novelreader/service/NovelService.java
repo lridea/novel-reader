@@ -4,6 +4,8 @@ import com.novelreader.entity.Dislike;
 import com.novelreader.entity.Novel;
 import com.novelreader.repository.DislikeRepository;
 import com.novelreader.repository.NovelRepository;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -31,11 +33,22 @@ public class NovelService {
     @Autowired
     private DislikeRepository dislikeRepository;
 
+    @Autowired
+    private TagManageService tagManageService;
+
+    @PersistenceContext
+    private EntityManager entityManager;
+
     /**
      * 保存小说
      */
     public Novel save(Novel novel) {
-        return novelRepository.save(novel);
+        Novel savedNovel = novelRepository.save(novel);
+        // 同步标签到标签表
+        if (novel.getTags() != null && !novel.getTags().isEmpty()) {
+            tagManageService.parseAndAddTags(novel.getTags(), "CRAWL");
+        }
+        return savedNovel;
     }
 
     /**
@@ -147,13 +160,13 @@ public class NovelService {
         // 更新书籍的点踩数（原子操作）
         novelRepository.incrementDislikeCount(novelId);
 
-        // 重新获取最新的点踩数
-        Novel updatedNovel = novelRepository.findById(novelId).orElse(null);
+        // 使用原生查询获取最新点踩数（绕过Hibernate缓存）
+        Integer latestDislikeCount = novelRepository.getDislikeCountById(novelId);
 
         result.put("success", true);
         result.put("message", "点踩成功");
         result.put("disliked", true);
-        result.put("dislikeCount", updatedNovel != null ? updatedNovel.getDislikeCount() : 0);
+        result.put("dislikeCount", latestDislikeCount != null ? latestDislikeCount : novel.getDislikeCount() + 1);
 
         return result;
     }
@@ -193,13 +206,13 @@ public class NovelService {
         // 更新书籍的点踩数（原子操作）
         novelRepository.decrementDislikeCount(novelId);
 
-        // 重新获取最新的点踩数
-        Novel updatedNovel = novelRepository.findById(novelId).orElse(null);
+        // 使用原生查询获取最新点踩数（绕过Hibernate缓存）
+        Integer latestDislikeCount = novelRepository.getDislikeCountById(novelId);
 
         result.put("success", true);
         result.put("message", "取消点踩成功");
         result.put("disliked", false);
-        result.put("dislikeCount", updatedNovel != null ? updatedNovel.getDislikeCount() : 0);
+        result.put("dislikeCount", latestDislikeCount != null ? latestDislikeCount : Math.max(0, novel.getDislikeCount() - 1));
 
         return result;
     }

@@ -7,7 +7,7 @@
           <div class="filter-buttons">
             <el-button
               :type="!selectedPlatform ? 'primary' : ''"
-              @click="selectedPlatform = ''; loadData()"
+              @click="selectedPlatform = ''; filterAndLoad()"
               size="small"
             >
               全部
@@ -16,7 +16,7 @@
               v-for="platform in platformOptions"
               :key="platform.value"
               :type="selectedPlatform === platform.value ? 'primary' : ''"
-              @click="selectedPlatform = platform.value; loadData()"
+              @click="selectedPlatform = platform.value; filterAndLoad()"
               size="small"
             >
               {{ platform.label }}
@@ -29,7 +29,7 @@
           <div class="filter-buttons">
             <el-button
               :type="selectedStatus === '' ? 'primary' : ''"
-              @click="selectedStatus = ''; loadData()"
+              @click="selectedStatus = ''; filterAndLoad()"
               size="small"
             >
               全部
@@ -38,7 +38,7 @@
               v-for="status in statusOptions"
               :key="status.value"
               :type="selectedStatus === status.value ? 'primary' : ''"
-              @click="selectedStatus = status.value; loadData()"
+              @click="selectedStatus = status.value; filterAndLoad()"
               size="small"
             >
               {{ status.label }}
@@ -47,83 +47,107 @@
         </div>
 
         <div class="filter-row">
-          <span class="filter-label">字数以下:</span>
+          <span class="filter-label">字数:</span>
           <div class="filter-buttons">
             <el-button
               :type="!wordCountMax ? 'primary' : ''"
-              @click="wordCountMax = ''; loadData()"
+              @click="wordCountMax = ''; filterAndLoad()"
               size="small"
             >
               不限
             </el-button>
             <el-button
               :type="wordCountMax === '100000' ? 'primary' : ''"
-              @click="wordCountMax = '100000'; loadData()"
+              @click="wordCountMax = '100000'; filterAndLoad()"
               size="small"
+              class="word-count-btn"
+              data-value="10w"
             >
-              10万以下
+              <span class="pc-text">10万以下</span>
+              <span class="mobile-text">10w-</span>
             </el-button>
             <el-button
               :type="wordCountMax === '300000' ? 'primary' : ''"
-              @click="wordCountMax = '300000'; loadData()"
+              @click="wordCountMax = '300000'; filterAndLoad()"
               size="small"
+              class="word-count-btn"
+              data-value="30w"
             >
-              30万以下
+              <span class="pc-text">30万以下</span>
+              <span class="mobile-text">30w-</span>
             </el-button>
             <el-button
               :type="wordCountMax === '500000' ? 'primary' : ''"
-              @click="wordCountMax = '500000'; loadData()"
+              @click="wordCountMax = '500000'; filterAndLoad()"
               size="small"
+              class="word-count-btn"
+              data-value="50w"
             >
-              50万以下
+              <span class="pc-text">50万以下</span>
+              <span class="mobile-text">50w-</span>
             </el-button>
             <el-button
               :type="wordCountMax === '1000000' ? 'primary' : ''"
-              @click="wordCountMax = '1000000'; loadData()"
+              @click="wordCountMax = '1000000'; filterAndLoad()"
               size="small"
+              class="word-count-btn"
+              data-value="100w"
             >
-              100万以下
+              <span class="pc-text">100万以下</span>
+              <span class="mobile-text">100w-</span>
             </el-button>
           </div>
         </div>
 
         <div class="filter-row">
-          <span class="filter-label">字数以上:</span>
+          <span class="filter-label">字数:</span>
           <div class="filter-buttons">
             <el-button
               :type="!wordCountMin ? 'primary' : ''"
-              @click="wordCountMin = ''; loadData()"
+              @click="wordCountMin = ''; filterAndLoad()"
               size="small"
             >
               不限
             </el-button>
             <el-button
               :type="wordCountMin === '100000' ? 'primary' : ''"
-              @click="wordCountMin = '100000'; loadData()"
+              @click="wordCountMin = '100000'; filterAndLoad()"
               size="small"
+              class="word-count-btn"
+              data-value="10w+"
             >
-              10万以上
+              <span class="pc-text">10万以上</span>
+              <span class="mobile-text">10w+</span>
             </el-button>
             <el-button
               :type="wordCountMin === '300000' ? 'primary' : ''"
-              @click="wordCountMin = '300000'; loadData()"
+              @click="wordCountMin = '300000'; filterAndLoad()"
               size="small"
+              class="word-count-btn"
+              data-value="30w+"
             >
-              30万以上
+              <span class="pc-text">30万以上</span>
+              <span class="mobile-text">30w+</span>
             </el-button>
             <el-button
               :type="wordCountMin === '500000' ? 'primary' : ''"
-              @click="wordCountMin = '500000'; loadData()"
+              @click="wordCountMin = '500000'; filterAndLoad()"
               size="small"
+              class="word-count-btn"
+              data-value="50w+"
             >
-              50万以上
+              <span class="pc-text">50万以上</span>
+              <span class="mobile-text">50w+</span>
             </el-button>
             <el-button
               :type="wordCountMin === '1000000' ? 'primary' : ''"
-              @click="wordCountMin = '1000000'; loadData()"
+              @click="wordCountMin = '1000000'; filterAndLoad()"
               size="small"
+              class="word-count-btn"
+              data-value="100w+"
             >
-              100万以上
+              <span class="pc-text">100万以上</span>
+              <span class="mobile-text">100w+</span>
             </el-button>
           </div>
         </div>
@@ -133,7 +157,7 @@
           <div class="filter-buttons">
             <el-button
               :type="!favoriteCountMin ? 'primary' : ''"
-              @click="favoriteCountMin = ''; loadData()"
+              @click="favoriteCountMin = ''; filterAndLoad()"
               size="small"
             >
               全部
@@ -142,7 +166,7 @@
               v-for="fc in favoriteCountOptions"
               :key="fc.value"
               :type="favoriteCountMin === fc.value ? 'primary' : ''"
-              @click="favoriteCountMin = fc.value; loadData()"
+              @click="favoriteCountMin = fc.value; filterAndLoad()"
               size="small"
             >
               {{ fc.label }}
@@ -150,25 +174,63 @@
           </div>
         </div>
 
-        <div class="filter-row">
+        <div class="filter-row" :class="{ 'tag-expanded-row': showAllTags && isMobile }">
           <span class="filter-label">标签:</span>
-          <div class="filter-buttons tag-buttons">
+          <div class="filter-buttons tag-filter-wrapper" :class="{ 'tag-expanded': showAllTags && isMobile }">
             <el-button
               :type="!selectedTag ? 'primary' : ''"
-              @click="selectedTag = ''; loadData()"
+              @click="selectedTag = ''; filterAndLoad()"
               size="small"
             >
               全部
             </el-button>
             <el-button
-              v-for="tag in tags"
+              v-for="tag in displayedTags"
               :key="tag"
               :type="selectedTag === tag ? 'primary' : ''"
-              @click="selectedTag = tag; loadData()"
+              @click="selectedTag = tag; filterAndLoad()"
               size="small"
             >
               {{ tag }}
             </el-button>
+            <span
+              v-if="(isMobile && tags.length > 3) || (!isMobile && tags.length > 5)"
+              class="expand-toggle"
+              @click="showAllTags = !showAllTags"
+            >
+              {{ showAllTags ? '收起' : '展开' }}
+              <el-icon><arrow-down v-if="!showAllTags" /><arrow-up v-else /></el-icon>
+            </span>
+          </div>
+        </div>
+        <div class="filter-row tag-search-row">
+          <span class="filter-label"></span>
+          <div class="tag-search-wrapper">
+            <el-input
+              v-model="tagSearchKeyword"
+              placeholder="搜索标签"
+              size="small"
+              clearable
+              @input="filterTags"
+            >
+              <template #prefix>
+                <el-icon><search /></el-icon>
+              </template>
+            </el-input>
+            <div v-if="filteredTags.length > 0" class="tag-search-results">
+              <el-button
+                v-for="tag in filteredTags"
+                :key="tag"
+                :type="selectedTag === tag ? 'primary' : ''"
+                @click="selectedTag = tag; filterAndLoad()"
+                size="small"
+              >
+                {{ tag }}
+              </el-button>
+            </div>
+            <div v-else-if="tagSearchKeyword" class="tag-search-empty">
+              未找到匹配的标签
+            </div>
           </div>
         </div>
 
@@ -177,28 +239,28 @@
           <div class="filter-buttons">
             <el-button
               :type="sortBy === 'updateTime' && sortOrder === 'desc' ? 'primary' : ''"
-              @click="sortBy = 'updateTime'; sortOrder = 'desc'; loadData()"
+              @click="sortBy = 'updateTime'; sortOrder = 'desc'; filterAndLoad()"
               size="small"
             >
               最新更新
             </el-button>
             <el-button
               :type="sortBy === 'createdAt' && sortOrder === 'desc' ? 'primary' : ''"
-              @click="sortBy = 'createdAt'; sortOrder = 'desc'; loadData()"
+              @click="sortBy = 'createdAt'; sortOrder = 'desc'; filterAndLoad()"
               size="small"
             >
               最新入库
             </el-button>
             <el-button
               :type="sortBy === 'wordCount' && sortOrder === 'desc' ? 'primary' : ''"
-              @click="sortBy = 'wordCount'; sortOrder = 'desc'; loadData()"
+              @click="sortBy = 'wordCount'; sortOrder = 'desc'; filterAndLoad()"
               size="small"
             >
               字数最多
             </el-button>
             <el-button
               :type="sortBy === 'favoriteCount' && sortOrder === 'desc' ? 'primary' : ''"
-              @click="sortBy = 'favoriteCount'; sortOrder = 'desc'; loadData()"
+              @click="sortBy = 'favoriteCount'; sortOrder = 'desc'; filterAndLoad()"
               size="small"
             >
               收藏最多
@@ -223,30 +285,74 @@
           <div class="info">
             <h3 class="title">{{ novel.title }}</h3>
             <p class="author">{{ novel.author }}</p>
-            <div class="tags">
-              <el-tag v-for="tag in parseTags(novel.tags)" :key="tag" size="small" type="warning">
-                {{ tag }}
-              </el-tag>
+            <div class="tags" ref="tagScrollContainer">
+              <div class="tags-scroll" :data-novel-id="novel.id">
+                <!-- 爬取的标签 -->
+                <el-tag 
+                  v-for="tag in parseTags(novel.tags)" 
+                  :key="'crawl-' + tag" 
+                  size="small" 
+                  type="warning"
+                >
+                  {{ tag }}
+                </el-tag>
+                <!-- 用户申请的标签 -->
+                <el-tag 
+                  v-for="tag in parseTags(novel.userTags)" 
+                  :key="'user-' + tag" 
+                  size="small" 
+                  type="danger"
+                >
+                  {{ tag }}
+                </el-tag>
+              </div>
             </div>
-            <p class="desc">{{ novel.description?.slice(0, 80) }}...</p>
+            <p class="desc">{{ novel.description }}</p>
             <div class="meta">
               <span>{{ formatWordCount(novel.wordCount) }}</span>
-              <span>{{ formatDate(novel.latestUpdateTime) }}</span>
+              <span>{{ formatDateTime(novel.latestUpdateTime) }}</span>
+            </div>
+            <div class="stats">
+              <span class="stat-item">
+                <el-icon><Star /></el-icon>
+                {{ novel.favoriteCount || 0 }}
+              </span>
+              <span class="stat-item">
+                <el-icon><ChatDotRound /></el-icon>
+                {{ novel.commentCount || 0 }}
+              </span>
+              <span class="stat-item">
+                <svg class="dislike-icon" viewBox="0 0 24 24" width="14" height="14" style="transform: rotate(180deg) scaleX(-1);">
+                  <path d="M9 21h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-2c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L14.17 1 7.58 7.59C7.22 7.95 7 8.45 7 9v10c0 1.1.9 2 2 2zM9 9l4.34-4.34L12 10h9v2l-3 7H9V9zM1 9h4v12H1V9z"/>
+                </svg>
+                {{ novel.dislikeCount || 0 }}
+              </span>
             </div>
           </div>
         </div>
       </div>
 
-      <div v-if="total > 0" class="pagination">
+      <!-- PC端分页 -->
+      <div v-if="total > 0 && !isMobile" class="pagination">
         <el-pagination
           v-model:current-page="currentPage"
           v-model:page-size="pageSize"
           :total="total"
           :page-sizes="[20, 40, 60, 100]"
           layout="total, sizes, prev, pager, next, jumper"
-          @current-change="loadData"
-          @size-change="loadData"
+          @current-change="handlePageChange"
+          @size-change="handlePageChange"
         />
+      </div>
+
+      <!-- 移动端加载状态 -->
+      <div v-if="isMobile && novels.length > 0 && loading" class="loading-more">
+        <el-icon class="is-loading"><loading /></el-icon>
+        <span>加载中...</span>
+      </div>
+
+      <div v-if="isMobile && novels.length > 0 && !loading && novels.length >= total" class="no-more">
+        没有更多了
       </div>
 
       <el-empty v-if="!loading && novels.length === 0" description="暂无数据" />
@@ -255,12 +361,61 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, computed, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { crawlerApi } from '../api'
+import { ArrowDown, ArrowUp, Search, Star, ChatDotRound, Loading } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const route = useRoute()
+
+// 保存滚动位置和分页数据
+const saveScrollPosition = () => {
+  sessionStorage.setItem('homeScrollPosition', window.scrollY.toString())
+  sessionStorage.setItem('homeCurrentPage', currentPage.value.toString())
+  sessionStorage.setItem('homeTotal', total.value.toString())
+  
+  // 移动端额外保存已加载的数据
+  if (isMobile.value) {
+    sessionStorage.setItem('homeNovelsData', JSON.stringify(novels.value))
+  }
+}
+
+// 恢复滚动位置和分页数据
+const restoreScrollPosition = async () => {
+  const savedPosition = sessionStorage.getItem('homeScrollPosition')
+  const savedPage = sessionStorage.getItem('homeCurrentPage')
+  const savedTotal = sessionStorage.getItem('homeTotal')
+  const savedNovels = sessionStorage.getItem('homeNovelsData')
+  
+  if (savedPage) {
+    currentPage.value = parseInt(savedPage)
+  }
+  
+  if (savedTotal) {
+    total.value = parseInt(savedTotal)
+  }
+  
+  // 移动端直接恢复缓存数据，PC端重新加载
+  if (isMobile.value && savedNovels) {
+    novels.value = JSON.parse(savedNovels)
+  } else if (savedPage) {
+    // PC端重新加载对应页的数据
+    await loadData(false)
+  }
+  
+  if (savedPosition) {
+    setTimeout(() => {
+      window.scrollTo(0, parseInt(savedPosition))
+    }, 100)
+  }
+  
+  // 清理缓存
+  sessionStorage.removeItem('homeScrollPosition')
+  sessionStorage.removeItem('homeCurrentPage')
+  sessionStorage.removeItem('homeNovelsData')
+  sessionStorage.removeItem('homeTotal')
+}
 
 const loading = ref(false)
 const novels = ref([])
@@ -279,6 +434,38 @@ const sortOrder = ref('desc')
 const keyword = ref('')
 
 const defaultCover = 'https://via.placeholder.com/150x200?text=No+Cover'
+
+// 移动端检测
+const isMobile = ref(false)
+const checkMobile = () => {
+  isMobile.value = window.innerWidth <= 768
+}
+
+// 标签展开/收起状态
+const showAllTags = ref(false)
+const tagSearchKeyword = ref('')
+const filteredTags = ref([])
+
+// 计算显示的标签（PC端默认显示前5个，移动端默认显示前3个，展开后显示全部）
+const displayedTags = computed(() => {
+  if (showAllTags.value) {
+    return tags.value
+  }
+  const defaultCount = isMobile.value ? 3 : 5
+  return tags.value.slice(0, defaultCount)
+})
+
+// 搜索标签
+const filterTags = () => {
+  const keyword = tagSearchKeyword.value.trim().toLowerCase()
+  if (!keyword) {
+    filteredTags.value = []
+    return
+  }
+  filteredTags.value = tags.value.filter(tag => 
+    tag.toLowerCase().includes(keyword)
+  )
+}
 
 const platformOptions = [
   { label: '刺猬猫', value: 'ciweimao' },
@@ -313,10 +500,17 @@ const parseTags = (tagsStr) => {
   if (!tagsStr) return []
   try {
     const parsed = JSON.parse(tagsStr)
-    return Array.isArray(parsed) ? parsed.slice(0, 3) : []
+    return Array.isArray(parsed) ? parsed : []
   } catch {
-    return tagsStr.split(',').slice(0, 3)
+    return tagsStr.split(',')
   }
+}
+
+// 判断是否为用户的标签
+const isUserTag = (novel, tag) => {
+  // novel.userTags 是 JSON 字符串，需要解析
+  const userTagList = parseTags(novel.userTags)
+  return userTagList.includes(tag)
 }
 
 const formatWordCount = (count) => {
@@ -327,17 +521,25 @@ const formatWordCount = (count) => {
   return count + '字'
 }
 
-const formatDate = (dateStr) => {
-  if (!dateStr) return ''
-  const date = new Date(dateStr)
-  return `${date.getMonth() + 1}-${date.getDate()}`
+const formatDateTime = (datetime) => {
+  if (!datetime) return '-'
+  const date = new Date(datetime)
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  const seconds = String(date.getSeconds()).padStart(2, '0')
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
 }
 
 const goDetail = (id) => {
+  // 保存当前滚动位置
+  saveScrollPosition()
   router.push(`/novel/${id}`)
 }
 
-const loadData = async () => {
+const loadData = async (append = false) => {
   loading.value = true
   try {
     const params = {
@@ -370,7 +572,11 @@ const loadData = async () => {
     }
 
     const response = await crawlerApi.getNovelsPublic(params)
-    novels.value = response.content || []
+    if (append) {
+      novels.value = [...novels.value, ...(response.content || [])]
+    } else {
+      novels.value = response.content || []
+    }
     total.value = response.totalElements || 0
   } catch (error) {
     console.error('加载数据失败:', error)
@@ -379,10 +585,50 @@ const loadData = async () => {
   }
 }
 
+// PC端分页处理
+const handlePageChange = () => {
+  loadData(false)
+}
+
+// 移动端加载更多
+const loadMore = () => {
+  if (loading.value) return
+  if (novels.value.length < total.value) {
+    currentPage.value++
+    loadData(true)
+  }
+}
+
+// 滚动监听
+const handleScroll = () => {
+  if (!isMobile.value) return
+  
+  const scrollTop = window.scrollY || document.documentElement.scrollTop
+  const windowHeight = window.innerHeight
+  const documentHeight = document.documentElement.scrollHeight
+  
+  // 距离底部 100px 时触发加载
+  if (scrollTop + windowHeight >= documentHeight - 100) {
+    loadMore()
+  }
+}
+
+// 筛选时重置并加载数据
+const filterAndLoad = () => {
+  // 清除缓存数据
+  sessionStorage.removeItem('homeScrollPosition')
+  sessionStorage.removeItem('homeCurrentPage')
+  sessionStorage.removeItem('homeNovelsData')
+  sessionStorage.removeItem('homeTotal')
+  
+  currentPage.value = 1
+  loadData(false)
+}
+
 const loadTags = async () => {
   try {
     const response = await crawlerApi.getTagsPublic()
-    tags.value = (response || []).map(t => t.tag_name).filter(Boolean).slice(0, 15)
+    tags.value = (response.tags || []).map(t => t.name).filter(Boolean)
   } catch (error) {
     console.error('加载标签失败:', error)
   }
@@ -390,17 +636,70 @@ const loadTags = async () => {
 
 watch(() => route.query.keyword, (newKeyword) => {
   keyword.value = newKeyword || ''
-  currentPage.value = 1
-  loadData()
+  filterAndLoad()
 })
 
-onMounted(() => {
+onMounted(async () => {
   if (route.query.keyword) {
     keyword.value = route.query.keyword
   }
-  loadData()
+  checkMobile()
+  window.addEventListener('resize', checkMobile)
+  window.addEventListener('scroll', handleScroll)
+  
+  // 检查是否有缓存的分页数据
+  const savedPage = sessionStorage.getItem('homeCurrentPage')
+  
+  if (savedPage) {
+    // 有缓存数据，恢复状态
+    await restoreScrollPosition()
+  } else {
+    // 无缓存数据，正常加载
+    await loadData(false)
+  }
+  
   loadTags()
+  startTagAutoScroll()
 })
+
+onUnmounted(() => {
+  // 组件卸载时的清理工作
+  window.removeEventListener('resize', checkMobile)
+  window.removeEventListener('scroll', handleScroll)
+})
+
+// 存储已停止滚动的小说ID
+const stoppedNovelIds = new Set()
+
+// 标签自动滚动
+const startTagAutoScroll = () => {
+  setInterval(() => {
+    const scrollContainers = document.querySelectorAll('.tags-scroll')
+    scrollContainers.forEach(container => {
+      const novelId = container.dataset.novelId
+      
+      // 如果已经停止，不再处理
+      if (stoppedNovelIds.has(novelId)) {
+        return
+      }
+      
+      if (container.scrollWidth > container.clientWidth) {
+        // 需要滚动
+        const maxScrollLeft = container.scrollWidth - container.clientWidth
+        
+        // 检查是否已到达底部（允许5px误差）
+        if (container.scrollLeft >= maxScrollLeft - 5) {
+          // 已到达底部，标记为停止
+          stoppedNovelIds.add(novelId)
+          return
+        }
+        
+        // 继续滚动
+        container.scrollLeft += 1.2
+      }
+    })
+  }, 60)
+}
 </script>
 
 <style scoped>
@@ -433,10 +732,10 @@ onMounted(() => {
 }
 
 .filter-label {
-  width: 70px;
+  width: 45px;
   font-size: 14px;
   color: #606266;
-  padding-top: 6px;
+  padding-top: 2px;
   flex-shrink: 0;
 }
 
@@ -446,9 +745,51 @@ onMounted(() => {
   gap: 8px;
 }
 
-.tag-buttons {
-  max-height: 100px;
-  overflow-y: auto;
+.tag-filter-wrapper {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.expand-toggle {
+  color: #409eff;
+  cursor: pointer;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.expand-toggle:hover {
+  background-color: #f0f9ff;
+}
+
+.tag-search-row {
+  margin-top: 4px;
+}
+
+.tag-search-wrapper {
+  flex: 1;
+}
+
+.tag-search-wrapper .el-input {
+  width: 200px;
+  margin-bottom: 8px;
+}
+
+.tag-search-results {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.tag-search-empty {
+  color: #909399;
+  font-size: 13px;
+  margin-top: 8px;
 }
 
 .novel-grid {
@@ -531,10 +872,21 @@ onMounted(() => {
 }
 
 .tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
   margin-bottom: 8px;
+  overflow: hidden;
+}
+
+.tags-scroll {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.tags-scroll::-webkit-scrollbar {
+  display: none;
 }
 
 .desc {
@@ -546,16 +898,333 @@ onMounted(() => {
   overflow: hidden;
 }
 
+/* PC端显示PC文本，隐藏移动端文本 */
+.pc-text {
+  display: inline;
+}
+
+.mobile-text {
+  display: none;
+}
+
 .meta {
   display: flex;
   justify-content: space-between;
   font-size: 12px;
   color: #909399;
+  margin-bottom: 8px;
+}
+
+.stats {
+  display: flex;
+  gap: 16px;
+  font-size: 13px;
+}
+
+.stat-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 500;
+}
+
+.stat-item:nth-child(1) {
+  color: #F56C6C;
+}
+
+.stat-item:nth-child(1) .el-icon {
+  color: #F56C6C;
+}
+
+.stat-item:nth-child(2) {
+  color: #409EFF;
+}
+
+.stat-item:nth-child(2) .el-icon {
+  color: #409EFF;
+}
+
+.stat-item:nth-child(3) {
+  color: #909399;
+}
+
+.stat-item .dislike-icon {
+  fill: currentColor;
 }
 
 .pagination {
   margin-top: 24px;
   display: flex;
   justify-content: center;
+}
+
+/* 移动端适配 */
+@media screen and (max-width: 768px) {
+  .container {
+    padding: 0 8px;
+  }
+
+  .filter-section {
+    padding: 8px;
+  }
+
+  /* 筛选行改为横向滚动，不换行 */
+  .filter-row {
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .filter-row::-webkit-scrollbar {
+    display: none;
+  }
+
+  .filter-label {
+    width: auto;
+    padding-top: 0;
+    font-size: 13px;
+    color: #606266;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+
+  .filter-buttons {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+
+  .filter-buttons .el-button {
+    flex-shrink: 0;
+    padding: 4px 8px;
+    font-size: 12px;
+    height: 28px;
+  }
+
+  /* 标签筛选行特殊处理 */
+  .tag-filter-wrapper {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    gap: 6px;
+    align-items: center;
+  }
+
+  .tag-filter-wrapper::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* 移动端标签展开后换行显示 */
+  .tag-filter-wrapper.tag-expanded {
+    flex-wrap: wrap !important;
+    overflow-x: visible !important;
+    width: 100%;
+  }
+
+  /* 标签展开时，父行也要允许换行 */
+  .tag-expanded-row {
+    flex-wrap: wrap !important;
+    overflow-x: visible !important;
+  }
+
+  .tag-expanded-row .filter-label {
+    width: 100%;
+    margin-bottom: 4px;
+  }
+
+  .tag-expanded-row .filter-buttons {
+    flex-wrap: wrap !important;
+    width: 100%;
+  }
+
+  /* 标签搜索行 */
+  .tag-search-row {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .tag-search-wrapper {
+    width: 100%;
+    min-width: 200px;
+  }
+
+  .tag-search-wrapper .el-input {
+    width: 100%;
+  }
+
+  /* 书籍列表 */
+  .novel-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .novel-card {
+    display: flex;
+    flex-direction: row;
+    padding: 6px;
+  }
+
+  .cover-wrapper {
+    width: 75px;
+    height: 100px;
+    flex-shrink: 0;
+  }
+
+  .cover {
+    height: 100%;
+    border-radius: 4px;
+  }
+
+  .platform-tag {
+    top: 2px;
+    left: 2px;
+    font-size: 9px;
+    padding: 1px 3px;
+    border-radius: 2px;
+  }
+
+  .info {
+    flex: 1;
+    padding: 0 0 0 8px;
+    min-width: 0;
+  }
+
+  .info > * {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .title {
+    font-size: 14px;
+    margin-bottom: 2px !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.2;
+  }
+
+  .author {
+    font-size: 12px;
+    margin-bottom: 2px !important;
+    color: #909399;
+    line-height: 1.1;
+  }
+
+  /* 标签区域 */
+  .tags {
+    margin-bottom: 2px !important;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    white-space: nowrap;
+  }
+
+  .tags::-webkit-scrollbar {
+    display: none;
+  }
+
+  .tags-scroll {
+    display: inline-flex;
+    gap: 4px;
+    flex-wrap: nowrap;
+  }
+
+  .tags-scroll .el-tag {
+    flex-shrink: 0;
+    font-size: 11px;
+    height: 18px;
+    padding: 0 4px;
+    white-space: nowrap;
+  }
+
+  .desc {
+    font-size: 11px;
+    color: #909399;
+    margin-bottom: 2px !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.1;
+    max-width: 100%;
+    height: auto !important;
+  }
+
+  /* 移动端显示移动端文本，隐藏PC文本 */
+  .pc-text {
+    display: none;
+  }
+
+  .mobile-text {
+    display: inline;
+  }
+
+  /* 元信息区域 */
+  .meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: #909399;
+    margin-bottom: 2px !important;
+    line-height: 1.1;
+  }
+
+  /* 统计区域 */
+  .stats {
+    display: flex;
+    gap: 12px;
+    font-size: 12px;
+  }
+
+  .stat-item {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+  }
+
+  .stat-item .el-icon {
+    font-size: 12px;
+  }
+
+  .stat-item .dislike-icon {
+    width: 12px;
+    height: 12px;
+  }
+
+  /* 展开按钮 */
+  .expand-toggle {
+    font-size: 12px;
+    padding: 2px 6px;
+  }
+
+  /* 加载中 */
+  .loading-more {
+    text-align: center;
+    padding: 16px 0;
+    color: #909399;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .no-more {
+    text-align: center;
+    padding: 16px 0;
+    color: #909399;
+    font-size: 13px;
+  }
+
+  /* 隐藏PC端分页 */
+  .pagination {
+    display: none;
+  }
 }
 </style>

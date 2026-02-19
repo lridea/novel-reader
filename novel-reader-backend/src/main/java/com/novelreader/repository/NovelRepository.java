@@ -64,7 +64,7 @@ public interface NovelRepository extends JpaRepository<Novel, Long> {
            "AND (:platform IS NULL OR n.platform = :platform) " +
            "AND (:keyword IS NULL OR n.title LIKE %:keyword% OR n.author LIKE %:keyword%) " +
            "AND (:status IS NULL OR n.status = :status) " +
-           "AND (:tag IS NULL OR n.tags LIKE %:tag%) " +
+           "AND (:tag IS NULL OR n.tags LIKE %:tag% OR n.userTags LIKE %:tag%) " +
            "AND (:wordCountMin IS NULL OR n.wordCount >= :wordCountMin) " +
            "AND (:wordCountMax IS NULL OR n.wordCount <= :wordCountMax) " +
            "AND (:favoriteCountMin IS NULL OR n.favoriteCount >= :favoriteCountMin) " +
@@ -156,6 +156,12 @@ public interface NovelRepository extends JpaRepository<Novel, Long> {
     @Query("UPDATE Novel n SET n.dislikeCount = n.dislikeCount - 1 WHERE n.id = :novelId AND n.dislikeCount > 0")
     @Transactional
     void decrementDislikeCount(@Param("novelId") Long novelId);
+
+    /**
+     * 原生查询获取最新点踩数（绕过Hibernate缓存）
+     */
+    @Query(value = "SELECT dislike_count FROM t_novel WHERE id = :novelId", nativeQuery = true)
+    Integer getDislikeCountById(@Param("novelId") Long novelId);
 
     /**
      * 根据关键词和最小点踩数搜索（管理员）

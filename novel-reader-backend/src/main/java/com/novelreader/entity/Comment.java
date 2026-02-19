@@ -44,6 +44,16 @@ public class Comment {
     private Long parentId;
 
     /**
+     * 被回复的评论ID（用于回复的回复场景）
+     */
+    private Long replyToCommentId;
+
+    /**
+     * 被回复的用户ID（用于回复的回复场景）
+     */
+    private Long replyToUserId;
+
+    /**
      * 楼层：1-顶层评论，2-回复评论
      */
     @ColumnDefault("1")
@@ -100,6 +110,12 @@ public class Comment {
     private UserInfo parentUser;
 
     /**
+     * 被回复用户信息（DTO字段，回复的回复使用）
+     */
+    @Transient
+    private UserInfo replyToUser;
+
+    /**
      * 回复列表（DTO字段，仅顶层评论使用）
      */
     @Transient
@@ -118,6 +134,12 @@ public class Comment {
     private Boolean isOwner;
 
     /**
+     * 楼层号（DTO字段，按发布时间顺序计算）
+     */
+    @Transient
+    private Integer floorNumber;
+
+    /**
      * 用户信息DTO
      */
     @Data
@@ -126,5 +148,6 @@ public class Comment {
         private String username;
         private String nickname;
         private String avatar;
+        private Integer floorNumber;
     }
 }

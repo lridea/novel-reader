@@ -65,9 +65,8 @@ public class CommentService {
         Page<Comment> commentPage;
 
         if (floor != null && floor == 2 && parentId != null) {
-            // 查询回复（按时间升序）
-            pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, "createdAt"));
-            commentPage = commentRepository.findByParentIdAndDeletedOrderByCreatedAtAsc(parentId, 0, pageable);
+            // 查询回复（按点赞数降序）
+            commentPage = commentRepository.findByParentIdAndDeletedOrderByLikeCountDesc(parentId, 0, pageable);
         } else {
             // 查询顶层评论（按点赞数降序）
             commentPage = commentRepository.findByNovelIdAndFloorAndDeletedOrderByLikeCountDesc(novelId, 1, 0, pageable);
@@ -90,12 +89,30 @@ public class CommentService {
 
     /**
      * 添加评论
+     * @param userId 用户ID
+     * @param novelId 小说ID
+     * @param parentId 父评论ID（顶层评论ID）
+     * @param replyToId 被回复的评论ID（回复的回复时使用）
+     * @param floor 楼层
+     * @param content 内容
      */
     @Transactional
-    public Map<String, Object> addComment(Long userId, Long novelId, Long parentId, Integer floor, String content) {
-        log.info("添加评论: userId={}, novelId={}, parentId={}, floor={}, content={}", userId, novelId, parentId, floor, content);
+    public Map<String, Object> addComment(Long userId, Long novelId, Long parentId, Long replyToId, Integer floor, String content) {
+        log.info("添加评论: userId={}, novelId={}, parentId={}, replyToId={}, floor={}, content={}", userId, novelId, parentId, replyToId, floor, content);
 
         Map<String, Object> result = new HashMap<>();
+
+        // 检查评论内容
+        if (content == null || content.trim().isEmpty()) {
+            result.put("success", false);
+            result.put("message", "评论内容不能为空");
+            return result;
+        }
+        if (content.length() > 2000) {
+            result.put("success", false);
+            result.put("message", "评论内容不能超过2000个字符");
+            return result;
+        }
 
         // 检查小说是否存在
         Optional<Novel> novelOpt = novelRepository.findById(novelId);
@@ -107,16 +124,33 @@ public class CommentService {
 
         Novel novel = novelOpt.get();
 
+        Long replyToUserId = null;
+        Long replyToCommentId = null;
+        Long actualParentId = parentId;
+
         // 如果是回复，检查父评论是否存在
-        Comment parentComment = null;
-        if (floor != null && floor == 2 && parentId != null) {
-            Optional<Comment> parentOpt = commentRepository.findById(parentId);
-            if (parentOpt.isEmpty()) {
+        if (floor != null && floor == 2) {
+            Long targetCommentId = replyToId != null ? replyToId : parentId;
+            Optional<Comment> targetOpt = commentRepository.findById(targetCommentId);
+            if (targetOpt.isEmpty()) {
                 result.put("success", false);
-                result.put("message", "父评论不存在");
+                result.put("message", "评论不存在");
                 return result;
             }
-            parentComment = parentOpt.get();
+            Comment targetComment = targetOpt.get();
+            
+            // 如果回复的是回复评论（floor=2），需要找到顶层评论
+            if (targetComment.getFloor() == 2) {
+                // 回复的回复：parentId 指向顶层评论，replyToCommentId 指向被回复评论，replyToUserId 指向被回复用户
+                actualParentId = targetComment.getParentId();
+                replyToCommentId = targetComment.getId();
+                replyToUserId = targetComment.getUserId();
+            } else {
+                // 回复顶层评论：parentId 指向顶层评论
+                actualParentId = targetComment.getId();
+                replyToCommentId = null;
+                replyToUserId = null;
+            }
         }
 
         // 敏感词过滤
@@ -132,7 +166,9 @@ public class CommentService {
         Comment comment = new Comment();
         comment.setUserId(userId);
         comment.setNovelId(novelId);
-        comment.setParentId(parentId);
+        comment.setParentId(actualParentId);
+        comment.setReplyToCommentId(replyToCommentId);
+        comment.setReplyToUserId(replyToUserId);
         comment.setFloor(floor != null ? floor : 1);
         comment.setContent(content);
         comment = commentRepository.save(comment);
@@ -140,9 +176,9 @@ public class CommentService {
         // 更新小说的评论数（原子操作）
         novelRepository.incrementCommentCount(novelId);
 
-        // 如果是回复，更新父评论的回复数（原子操作）
-        if (floor != null && floor == 2 && parentComment != null) {
-            commentRepository.incrementReplyCount(parentId);
+        // 如果是回复，更新顶层评论的回复数（原子操作）
+        if (floor != null && floor == 2 && actualParentId != null) {
+            commentRepository.incrementReplyCount(actualParentId);
         }
 
         // 重新获取最新的小说评论数
@@ -167,6 +203,7 @@ public class CommentService {
         commentInfo.put("userId", comment.getUserId());
         commentInfo.put("novelId", comment.getNovelId());
         commentInfo.put("parentId", comment.getParentId());
+        commentInfo.put("replyToUserId", comment.getReplyToUserId());
         commentInfo.put("floor", comment.getFloor());
         commentInfo.put("content", comment.getContent());
         commentInfo.put("likeCount", comment.getLikeCount());
@@ -190,7 +227,7 @@ public class CommentService {
             commentInfo.put("user", userInfo);
         }
 
-        // 如果是回复，获取父评论用户信息
+        // 如果是回复，获取父评论用户信息（顶层评论作者）
         if (comment.getParentId() != null) {
             Optional<Comment> parentOpt = commentRepository.findById(comment.getParentId());
             if (parentOpt.isPresent()) {
@@ -208,6 +245,31 @@ public class CommentService {
             }
         }
 
+        // 如果是回复的回复，获取被回复用户信息（包括楼层号）
+        if (comment.getReplyToUserId() != null) {
+            Optional<com.novelreader.entity.User> replyToUserOpt = userRepository.findById(comment.getReplyToUserId());
+            if (replyToUserOpt.isPresent()) {
+                com.novelreader.entity.User replyToUser = replyToUserOpt.get();
+                Comment.UserInfo replyToUserInfo = new Comment.UserInfo();
+                replyToUserInfo.setId(replyToUser.getId());
+                replyToUserInfo.setUsername(replyToUser.getUsername());
+                replyToUserInfo.setNickname(replyToUser.getNickname());
+                replyToUserInfo.setAvatar(replyToUser.getAvatarUrl());
+                
+                // 获取被回复评论的楼层号
+                if (comment.getReplyToCommentId() != null) {
+                    Optional<Comment> replyToCommentOpt = commentRepository.findById(comment.getReplyToCommentId());
+                    if (replyToCommentOpt.isPresent()) {
+                        Comment replyToComment = replyToCommentOpt.get();
+                        Long replyToFloorNumber = commentRepository.countRepliesBeforeTime(replyToComment.getParentId(), replyToComment.getCreatedAt()) + 1;
+                        replyToUserInfo.setFloorNumber(replyToFloorNumber.intValue());
+                    }
+                }
+                
+                commentInfo.put("replyToUser", replyToUserInfo);
+            }
+        }
+
         // 当前用户是否已点赞
         if (userId != null) {
             boolean liked = commentLikeRepository.existsByUserIdAndCommentId(userId, comment.getId());
@@ -221,6 +283,17 @@ public class CommentService {
             commentInfo.put("isOwner", comment.getUserId().equals(userId));
         } else {
             commentInfo.put("isOwner", false);
+        }
+
+        // 计算楼层号（按发布时间顺序）
+        if (comment.getFloor() != null && comment.getFloor() == 1) {
+            // 顶层评论：计算在该评论之前发布的数量
+            Long floorNumber = commentRepository.countCommentsBeforeTime(comment.getNovelId(), comment.getCreatedAt()) + 1;
+            commentInfo.put("floorNumber", floorNumber.intValue());
+        } else if (comment.getParentId() != null) {
+            // 回复：计算在该回复之前发布的数量
+            Long replyFloorNumber = commentRepository.countRepliesBeforeTime(comment.getParentId(), comment.getCreatedAt()) + 1;
+            commentInfo.put("replyFloorNumber", replyFloorNumber.intValue());
         }
 
         return commentInfo;
@@ -264,13 +337,13 @@ public class CommentService {
         // 更新评论的点赞数（原子操作）
         commentRepository.incrementLikeCount(commentId);
 
-        // 重新获取最新的点赞数
-        Comment updatedComment = commentRepository.findById(commentId).orElse(null);
+        // 直接查询最新的点赞数（绕过缓存）
+        Integer likeCount = commentRepository.getLikeCountById(commentId);
 
         result.put("success", true);
         result.put("message", "点赞成功");
         result.put("liked", true);
-        result.put("commentLikeCount", updatedComment != null ? updatedComment.getLikeCount() : 0);
+        result.put("commentLikeCount", likeCount != null ? likeCount : 0);
 
         return result;
     }
@@ -310,13 +383,13 @@ public class CommentService {
         // 更新评论的点赞数（原子操作）
         commentRepository.decrementLikeCount(commentId);
 
-        // 重新获取最新的点赞数
-        Comment updatedComment = commentRepository.findById(commentId).orElse(null);
+        // 直接查询最新的点赞数（绕过缓存）
+        Integer likeCount = commentRepository.getLikeCountById(commentId);
 
         result.put("success", true);
         result.put("message", "取消点赞成功");
         result.put("liked", false);
-        result.put("commentLikeCount", updatedComment != null ? updatedComment.getLikeCount() : 0);
+        result.put("commentLikeCount", likeCount != null ? likeCount : 0);
 
         return result;
     }

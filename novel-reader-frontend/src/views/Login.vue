@@ -70,14 +70,19 @@ const handleLogin = async () => {
     loading.value = true
     try {
       const response = await crawlerApi.login(form)
-      localStorage.setItem('token', response.token)
-      if (response.user) {
-        localStorage.setItem('user', JSON.stringify(response.user))
+      if (response.success) {
+        localStorage.setItem('token', response.token)
+        if (response.user) {
+          localStorage.setItem('user', JSON.stringify(response.user))
+        }
+        ElMessage.success('登录成功')
+        router.push('/')
+      } else {
+        ElMessage.error(response.message || '登录失败')
       }
-      ElMessage.success('登录成功')
-      router.push('/')
     } catch (error) {
       console.error('登录失败:', error)
+      ElMessage.error('登录失败，请稍后重试')
     } finally {
       loading.value = false
     }

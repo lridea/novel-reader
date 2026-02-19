@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS t_novel (
     id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
     platform VARCHAR(50) NOT NULL COMMENT '平台来源: ciweimao/sf/ciyuanji',
     novel_id VARCHAR(100) NOT NULL COMMENT '平台内唯一ID',
+    source_url VARCHAR(500) COMMENT '源网页地址',
     title VARCHAR(200) NOT NULL COMMENT '书名',
     author VARCHAR(100) COMMENT '作者',
     description TEXT COMMENT '简介',
@@ -101,10 +102,10 @@ CREATE TABLE IF NOT EXISTS t_crawler_task (
 -- ============================================================
 CREATE TABLE IF NOT EXISTS t_user (
     id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
-    username VARCHAR(50) NOT NULL COMMENT '用户名',
+    username VARCHAR(50) NOT NULL COMMENT '用户名（账号名，用于登录）',
     password VARCHAR(255) NOT NULL COMMENT '密码(加密)',
-    email VARCHAR(100) COMMENT '邮箱',
-    nickname VARCHAR(50) COMMENT '昵称',
+    email VARCHAR(100) COMMENT '邮箱（可选）',
+    nickname VARCHAR(50) NOT NULL COMMENT '昵称（用于前台展示）',
     avatar_url VARCHAR(500) COMMENT '头像URL',
     role VARCHAR(20) DEFAULT 'USER' COMMENT '角色: USER-普通用户, ADMIN-管理员',
     enabled TINYINT DEFAULT 1 COMMENT '状态: 0-禁用, 1-正常',
@@ -113,23 +114,30 @@ CREATE TABLE IF NOT EXISTS t_user (
     last_login_time DATETIME COMMENT '最后登录时间',
     
     UNIQUE KEY uk_username (username),
-    UNIQUE KEY uk_email (email)
+    UNIQUE KEY uk_nickname (nickname)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户表';
 
 -- ============================================================
 -- 5. 用户收藏表
 -- ============================================================
-CREATE TABLE IF NOT EXISTS t_user_favorite (
+CREATE TABLE IF NOT EXISTS t_favorite (
     id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
     user_id BIGINT NOT NULL COMMENT '用户ID',
     novel_id BIGINT NOT NULL COMMENT '小说ID',
-    category VARCHAR(50) DEFAULT 'default' COMMENT '分类名称',
+    category_id BIGINT COMMENT '收藏分类ID',
+    platform VARCHAR(50) COMMENT '平台',
+    platform_novel_id VARCHAR(100) COMMENT '平台内小说ID',
     note VARCHAR(500) COMMENT '备注',
+    latest_chapter_title VARCHAR(200) COMMENT '最新章节标题（快照）',
+    latest_update_time DATETIME COMMENT '最新更新时间（快照）',
+    has_update TINYINT DEFAULT 0 COMMENT '是否有更新: 0-否, 1-是',
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     
-    UNIQUE KEY uk_user_novel (user_id, novel_id),
+    UNIQUE KEY uk_user_novel_category (user_id, novel_id, category_id),
     INDEX idx_user_id (user_id),
-    INDEX idx_novel_id (novel_id)
+    INDEX idx_novel_id (novel_id),
+    INDEX idx_category_id (category_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户收藏表';
 
 -- ============================================================
@@ -139,8 +147,11 @@ CREATE TABLE IF NOT EXISTS t_favorite_category (
     id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
     user_id BIGINT NOT NULL COMMENT '用户ID',
     name VARCHAR(50) NOT NULL COMMENT '分类名称',
+    description VARCHAR(200) COMMENT '描述',
+    is_default TINYINT DEFAULT 0 COMMENT '是否默认收藏夹: 0-否, 1-是',
     sort_order INT DEFAULT 0 COMMENT '排序',
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     
     INDEX idx_user_id (user_id),
     UNIQUE KEY uk_user_name (user_id, name)
@@ -154,6 +165,8 @@ CREATE TABLE IF NOT EXISTS t_comment (
     user_id BIGINT NOT NULL COMMENT '用户ID',
     novel_id BIGINT NOT NULL COMMENT '小说ID',
     parent_id BIGINT COMMENT '父评论ID（NULL表示顶层评论）',
+    reply_to_user_id BIGINT COMMENT '被回复的用户ID（用于回复的回复场景）',
+    reply_to_comment_id BIGINT COMMENT '被回复的评论ID（用于回复的回复场景）',
     floor INT DEFAULT 1 COMMENT '楼层：1-顶层评论，2-回复评论',
     content TEXT NOT NULL COMMENT '评论内容',
     like_count INT DEFAULT 0 COMMENT '点赞数',
@@ -165,6 +178,8 @@ CREATE TABLE IF NOT EXISTS t_comment (
     INDEX idx_novel_id (novel_id),
     INDEX idx_parent_id (parent_id),
     INDEX idx_user_id (user_id),
+    INDEX idx_reply_to_user_id (reply_to_user_id),
+    INDEX idx_reply_to_comment_id (reply_to_comment_id),
     INDEX idx_created_at (created_at DESC),
     INDEX idx_novel_floor (novel_id, floor, created_at DESC),
     INDEX idx_novel_floor_like (novel_id, floor, deleted, like_count DESC)
@@ -253,6 +268,19 @@ CREATE TABLE IF NOT EXISTS t_user_tag (
     INDEX idx_tag (tag),
     UNIQUE KEY uk_user_novel_tag (user_id, novel_id, tag)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户标签表';
+
+-- ============================================================
+-- 13. 标签表
+-- ============================================================
+CREATE TABLE IF NOT EXISTS t_tag (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
+    name VARCHAR(100) NOT NULL COMMENT '标签名称',
+    source VARCHAR(20) NOT NULL DEFAULT 'CRAWL' COMMENT '来源: CRAWL-爬取, USER-用户添加',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    
+    UNIQUE KEY uk_name (name),
+    INDEX idx_source (source)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='标签表';
 
 -- ============================================================
 -- 初始化数据

@@ -32,11 +32,11 @@ public class AuthController {
     @PostMapping("/register")
     public Map<String, Object> register(@RequestBody Map<String, String> request) {
         String username = request.get("username");
-        String email = request.get("email");
+        String nickname = request.get("nickname");
         String password = request.get("password");
 
         if (username == null || username.isEmpty() ||
-            email == null || email.isEmpty() ||
+            nickname == null || nickname.isEmpty() ||
             password == null || password.isEmpty()) {
             Map<String, Object> error = new HashMap<>();
             error.put("success", false);
@@ -44,7 +44,7 @@ public class AuthController {
             return error;
         }
 
-        return authService.register(username, email, password);
+        return authService.register(username, nickname, password);
     }
 
     /**
@@ -53,12 +53,9 @@ public class AuthController {
     @PostMapping("/login")
     public Map<String, Object> login(@RequestBody Map<String, String> request) {
         String username = request.get("username");
-        String email = request.get("email");
         String password = request.get("password");
 
-        String loginAccount = (username != null && !username.isEmpty()) ? username : email;
-
-        if (loginAccount == null || loginAccount.isEmpty() ||
+        if (username == null || username.isEmpty() ||
             password == null || password.isEmpty()) {
             Map<String, Object> error = new HashMap<>();
             error.put("success", false);
@@ -66,7 +63,7 @@ public class AuthController {
             return error;
         }
 
-        return authService.login(loginAccount, password);
+        return authService.login(username, password);
     }
 
     /**

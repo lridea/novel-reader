@@ -16,9 +16,10 @@ import java.time.LocalDateTime;
 @Table(name = "t_favorite", indexes = {
     @Index(name = "idx_user_id", columnList = "userId"),
     @Index(name = "idx_novel_id", columnList = "novelId"),
-    @Index(name = "idx_user_novel", columnList = "userId,novelId")
+    @Index(name = "idx_user_novel", columnList = "userId,novelId"),
+    @Index(name = "idx_category_id", columnList = "categoryId")
 }, uniqueConstraints = {
-    @UniqueConstraint(name = "uk_user_novel", columnNames = {"userId", "novelId"})
+    @UniqueConstraint(name = "uk_user_novel_category", columnNames = {"userId", "novelId", "categoryId"})
 })
 public class Favorite {
 
@@ -26,21 +27,15 @@ public class Favorite {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    /**
-     * 用户ID
-     */
     @Column(nullable = false)
     private Long userId;
 
-    /**
-     * 小说ID（本系统的ID）
-     */
     @Column(nullable = false)
     private Long novelId;
 
-    /**
-     * 平台
-     */
+    @Column
+    private Long categoryId;
+
     @Column(length = 50)
     private String platform;
 

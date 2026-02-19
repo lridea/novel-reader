@@ -46,6 +46,12 @@ public class Novel {
     private String novelId;
 
     /**
+     * 源网页地址
+     */
+    @Column(length = 500)
+    private String sourceUrl;
+
+    /**
      * 书名
      */
     @Column(nullable = false, length = 200)

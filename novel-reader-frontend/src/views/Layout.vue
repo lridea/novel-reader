@@ -51,9 +51,9 @@
           <el-dropdown @command="handleCommand">
             <div class="user-info">
               <el-avatar :size="32">
-                {{ user?.username?.charAt(0)?.toUpperCase() }}
+                {{ user?.nickname?.charAt(0)?.toUpperCase() || user?.username?.charAt(0)?.toUpperCase() }}
               </el-avatar>
-              <span class="username">{{ user?.username }}</span>
+              <span class="username">{{ user?.nickname || user?.username }}</span>
             </div>
             <template #dropdown>
               <el-dropdown-menu>
@@ -78,7 +78,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { 
   Refresh, DataAnalysis, List, Setting, Reading, 
@@ -115,12 +115,13 @@ const handleCommand = (command) => {
 const handleLogout = async () => {
   try {
     await crawlerApi.logout()
+  } catch (error) {
+    console.error('退出登录API调用失败:', error)
+  } finally {
     localStorage.removeItem('token')
     localStorage.removeItem('user')
     ElMessage.success('已退出登录')
     router.push('/')
-  } catch (error) {
-    console.error('退出登录失败:', error)
   }
 }
 
@@ -137,16 +138,28 @@ const loadUser = async () => {
   if (!user.value) {
     try {
       const response = await crawlerApi.getCurrentUser()
-      user.value = response
-      localStorage.setItem('user', JSON.stringify(response))
+      if (response.success && response.user) {
+        user.value = response.user
+        localStorage.setItem('user', JSON.stringify(response.user))
+      }
     } catch (error) {
       console.error('获取用户信息失败:', error)
     }
   }
 }
 
+// 监听用户信息更新事件
+const handleUserInfoUpdated = (event) => {
+  user.value = event.detail
+}
+
 onMounted(() => {
   loadUser()
+  window.addEventListener('user-info-updated', handleUserInfoUpdated)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('user-info-updated', handleUserInfoUpdated)
 })
 </script>
 

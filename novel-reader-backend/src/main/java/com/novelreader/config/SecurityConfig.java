@@ -69,6 +69,9 @@ public class SecurityConfig {
 
                 // 配置授权规则
                 .authorizeHttpRequests(auth -> auth
+                        // 静态资源（无需认证）
+                        .requestMatchers("/uploads/**").permitAll()
+
                         // 公开接口（无需认证）
                         .requestMatchers(
                                 "/api/crawler/health",
@@ -103,7 +106,9 @@ public class SecurityConfig {
                                 "/api/categories/**",
                                 "/api/users/**",
                                 "/api/auth/me",
-                                "/api/auth/logout"
+                                "/api/auth/logout",
+                                "/api/comments/*/like",
+                                "/api/upload/**"
                         ).hasAnyRole("USER", "ADMIN")
 
                         // 其他所有请求需要认证

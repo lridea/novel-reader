@@ -9,9 +9,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 
-/**
- * 收藏控制器
- */
 @Slf4j
 @RestController
 @RequestMapping("/api/favorites")
@@ -20,9 +17,6 @@ public class FavoriteController {
     @Autowired
     private FavoriteService favoriteService;
 
-    /**
-     * 添加收藏
-     */
     @PostMapping
     public Map<String, Object> addFavorite(@RequestBody Map<String, Object> request) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -36,16 +30,17 @@ public class FavoriteController {
 
         Long userId = (Long) authentication.getPrincipal();
         Long novelId = Long.valueOf(request.get("novelId").toString());
+        Long categoryId = request.get("categoryId") != null ? Long.valueOf(request.get("categoryId").toString()) : null;
         String note = (String) request.get("note");
 
-        return favoriteService.addFavorite(userId, novelId, note);
+        return favoriteService.addFavorite(userId, novelId, categoryId, note);
     }
 
-    /**
-     * 取消收藏
-     */
     @DeleteMapping("/{novelId}")
-    public Map<String, Object> removeFavorite(@PathVariable Long novelId) {
+    public Map<String, Object> removeFavorite(
+            @PathVariable Long novelId,
+            @RequestParam(required = false) Long categoryId) {
+
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
         if (authentication == null || !authentication.isAuthenticated()) {
@@ -56,16 +51,16 @@ public class FavoriteController {
         }
 
         Long userId = (Long) authentication.getPrincipal();
-        return favoriteService.removeFavorite(userId, novelId);
+        return favoriteService.removeFavorite(userId, novelId, categoryId);
     }
 
-    /**
-     * 获取收藏列表
-     */
     @GetMapping
     public Map<String, Object> getFavoriteList(
+            @RequestParam(required = false) Long categoryId,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String sortBy,
+            @RequestParam(required = false) String keyword) {
 
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
@@ -77,12 +72,9 @@ public class FavoriteController {
         }
 
         Long userId = (Long) authentication.getPrincipal();
-        return favoriteService.getFavoriteList(userId, page, size);
+        return favoriteService.getFavoriteList(userId, categoryId, page, size, sortBy, keyword);
     }
 
-    /**
-     * 更新收藏备注
-     */
     @PutMapping("/{novelId}/note")
     public Map<String, Object> updateFavoriteNote(
             @PathVariable Long novelId,
@@ -103,9 +95,6 @@ public class FavoriteController {
         return favoriteService.updateFavoriteNote(userId, novelId, note);
     }
 
-    /**
-     * 批量查询收藏状态
-     */
     @GetMapping("/check-batch")
     public Map<String, Object> checkBatchFavorites(@RequestParam String novelIds) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();

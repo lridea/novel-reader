@@ -14,11 +14,10 @@ import java.time.LocalDateTime;
 @Data
 @Entity
 @Table(name = "t_user", indexes = {
-    @Index(name = "idx_username", columnList = "username"),
-    @Index(name = "idx_email", columnList = "email")
+    @Index(name = "idx_username", columnList = "username")
 }, uniqueConstraints = {
     @UniqueConstraint(name = "uk_username", columnNames = {"username"}),
-    @UniqueConstraint(name = "uk_email", columnNames = {"email"})
+    @UniqueConstraint(name = "uk_nickname", columnNames = {"nickname"})
 })
 public class User {
 
@@ -27,7 +26,7 @@ public class User {
     private Long id;
 
     /**
-     * 用户名
+     * 用户名（账号名，用于登录）
      */
     @Column(nullable = false, length = 50, unique = true)
     private String username;
@@ -39,15 +38,15 @@ public class User {
     private String password;
 
     /**
-     * 邮箱
+     * 邮箱（可选）
      */
-    @Column(nullable = false, length = 100, unique = true)
+    @Column(length = 100)
     private String email;
 
     /**
-     * 昵称
+     * 昵称（用于前台展示）
      */
-    @Column(length = 50)
+    @Column(nullable = false, length = 50)
     private String nickname;
 
     /**

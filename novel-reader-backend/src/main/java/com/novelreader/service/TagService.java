@@ -39,6 +39,9 @@ public class TagService {
     @Autowired
     private ObjectMapper objectMapper;
 
+    @Autowired
+    private TagManageService tagManageService;
+
     /**
      * 添加标签（用户）
      */
@@ -210,6 +213,9 @@ public class TagService {
             userTag.setTag(tagAudit.getTag());
             userTagRepository.save(userTag);
 
+            // 同步标签到标签表
+            tagManageService.addTagIfNotExists(tagAudit.getTag(), "USER");
+
             // 更新书籍的userTags字段
             updateUserTags(tagAudit.getNovelId());
         }
@@ -267,6 +273,9 @@ public class TagService {
                 userTag.setNovelId(tagAudit.getNovelId());
                 userTag.setTag(tagAudit.getTag());
                 userTagRepository.save(userTag);
+
+                // 同步标签到标签表
+                tagManageService.addTagIfNotExists(tagAudit.getTag(), "USER");
 
                 // 记录需要更新的书籍ID
                 updatedNovelIds.add(tagAudit.getNovelId());
