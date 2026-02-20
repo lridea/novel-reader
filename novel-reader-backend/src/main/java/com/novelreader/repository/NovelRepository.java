@@ -81,6 +81,30 @@ public interface NovelRepository extends JpaRepository<Novel, Long> {
             Pageable pageable);
 
     /**
+     * 复杂查询（支持多平台多选）
+     * 支持平台列表、关键词、状态、标签、字数范围、收藏数范围、排序
+     */
+    @Query("SELECT n FROM Novel n WHERE n.deleted = 0 " +
+           "AND (n.platform IN :platforms) " +
+           "AND (:keyword IS NULL OR n.title LIKE %:keyword% OR n.author LIKE %:keyword%) " +
+           "AND (:status IS NULL OR n.status = :status) " +
+           "AND (:tag IS NULL OR n.tags LIKE %:tag% OR n.userTags LIKE %:tag%) " +
+           "AND (:wordCountMin IS NULL OR n.wordCount >= :wordCountMin) " +
+           "AND (:wordCountMax IS NULL OR n.wordCount <= :wordCountMax) " +
+           "AND (:favoriteCountMin IS NULL OR n.favoriteCount >= :favoriteCountMin) " +
+           "AND (:favoriteCountMax IS NULL OR n.favoriteCount <= :favoriteCountMax)")
+    Page<Novel> searchNovelsByPlatforms(
+            @Param("platforms") List<String> platforms,
+            @Param("keyword") String keyword,
+            @Param("status") Integer status,
+            @Param("tag") String tag,
+            @Param("wordCountMin") Long wordCountMin,
+            @Param("wordCountMax") Long wordCountMax,
+            @Param("favoriteCountMin") Integer favoriteCountMin,
+            @Param("favoriteCountMax") Integer favoriteCountMax,
+            Pageable pageable);
+
+    /**
      * 获取所有标签（按数量降序，原生SQL）
      */
     @Query(value = "SELECT JSON_UNQUOTE(JSON_EXTRACT(tags, CONCAT('$[', seq.seq, ']'))) as tag_name, " +

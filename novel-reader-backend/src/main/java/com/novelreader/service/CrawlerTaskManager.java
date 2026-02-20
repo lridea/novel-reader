@@ -46,7 +46,7 @@ public class CrawlerTaskManager {
     }
 
     @Transactional
-    public void releaseLock(String platform, boolean success, String errorMessage) {
+    public void releaseLock(String platform, boolean success, String errorMessage, LocalDateTime crawlerStartTime) {
         synchronized (getLock(platform)) {
             CrawlerConfig config = crawlerConfigRepository.findByPlatform(platform);
             if (config == null) {
@@ -58,7 +58,7 @@ public class CrawlerTaskManager {
             config.setRunningTaskId(null);
 
             if (success) {
-                config.setLastSuccessCrawlTime(LocalDateTime.now());
+                config.setLastSuccessCrawlTime(crawlerStartTime);
                 config.setCrawlCount(config.getCrawlCount() + 1);
                 config.setLastErrorMessage(null);
             } else {

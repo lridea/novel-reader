@@ -83,7 +83,7 @@ public class CrawlerScheduler {
 
         String errorMessage = null;
         boolean success = false;
-
+        LocalDateTime crawlerStartTime = LocalDateTime.now();
         try {
             BaseCrawler crawler = findCrawler(platform);
             if (crawler == null) {
@@ -137,7 +137,7 @@ public class CrawlerScheduler {
             errorMessage = e.getMessage();
             log.error("处理平台 {} 失败: {}", platform, e.getMessage(), e);
         } finally {
-            crawlerTaskManager.releaseLock(platform, success, errorMessage);
+            crawlerTaskManager.releaseLock(platform, success, errorMessage, crawlerStartTime);
         }
     }
 

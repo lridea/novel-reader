@@ -121,7 +121,7 @@ public class CiweimaoCrawler implements BaseCrawler {
 
     private List<Novel> crawlListPage(String url, List<String> filterTags, LocalDateTime sinceTime, AtomicBoolean shouldStop) {
         List<Novel> novels = new ArrayList<>();
-
+        int tryCrawlCount = 0;
         try {
             Request request = buildRequest(url);
             try (Response response = executeWithRetry(request)) {
@@ -159,7 +159,9 @@ public class CiweimaoCrawler implements BaseCrawler {
                     }
 
                     if (sinceTime != null && fullNovel.getLatestUpdateTime() != null) {
-                        if (!fullNovel.getLatestUpdateTime().isAfter(sinceTime)) {
+                        // 至少存在三本书时间都早于爬取时间再停止爬取，防止网站出现错误数据
+                        tryCrawlCount++;
+                        if (!fullNovel.getLatestUpdateTime().isAfter(sinceTime) && tryCrawlCount >= 3) {
                             log.info("小说 {} 更新时间 {} 早于或等于增量时间 {}，停止继续爬取", 
                                 fullNovel.getTitle(), fullNovel.getLatestUpdateTime(), sinceTime);
                             shouldStop.set(true);
@@ -338,9 +340,11 @@ public class CiweimaoCrawler implements BaseCrawler {
         if (statusElement != null) {
             String status = statusElement.text().trim();
             if (status.contains("完结")) {
-                novel.setStatus(1);
+                novel.setStatus(2);  // 2-完结
+            } else if (status.contains("连载")) {
+                novel.setStatus(1);  // 1-连载
             } else {
-                novel.setStatus(0);
+                novel.setStatus(0);  // 0-停更
             }
         }
 

@@ -179,6 +179,7 @@ const loadData = async () => {
     const data = await crawlerApi.getConfigs()
     configs.value = (data || []).map(c => ({
       ...c,
+      enabled: c.enabled === 1,
       saving: false,
       triggering: false,
       testing: false,
@@ -235,8 +236,18 @@ const removeTag = (config, tag) => {
 const saveConfig = async (config) => {
   config.saving = true
   try {
+    const currentTag = newTags[config.platform]?.trim()
+    if (currentTag) {
+      const tags = parseTags(config.tags)
+      if (!tags.includes(currentTag)) {
+        tags.push(currentTag)
+        config.tags = JSON.stringify(tags)
+      }
+      newTags[config.platform] = ''
+    }
+    
     await crawlerApi.updateConfig(config.id, {
-      enabled: config.enabled,
+      enabled: config.enabled ? 1 : 0,
       tags: config.tags,
       crawlInterval: config.crawlInterval
     })

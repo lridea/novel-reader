@@ -108,7 +108,7 @@ public class CiyuanjiCrawler implements BaseCrawler {
 
     private List<Novel> crawlListPage(String url, List<String> filterTags, LocalDateTime sinceTime, AtomicBoolean shouldStop) {
         List<Novel> novels = new ArrayList<>();
-
+        int tryCrawlCount = 0;
         try {
             Request request = buildRequest(url);
             try (Response response = executeWithRetry(request)) {
@@ -141,7 +141,9 @@ public class CiyuanjiCrawler implements BaseCrawler {
                     }
 
                     if (sinceTime != null && fullNovel.getLatestUpdateTime() != null) {
-                        if (!fullNovel.getLatestUpdateTime().isAfter(sinceTime)) {
+                        // 至少存在三本书时间都早于爬取时间再停止爬取，防止网站出现错误数据
+                        tryCrawlCount++;
+                        if (!fullNovel.getLatestUpdateTime().isAfter(sinceTime) && tryCrawlCount >= 3) {
                             log.info("小说 {} 更新时间 {} 早于或等于增量时间 {}，停止继续爬取", 
                                 fullNovel.getTitle(), fullNovel.getLatestUpdateTime(), sinceTime);
                             shouldStop.set(true);
@@ -286,6 +288,18 @@ public class CiyuanjiCrawler implements BaseCrawler {
         Elements textElements = doc.select(".book_detail_tags__pkrm2 .book_detail_text__HlCNP");
         if (textElements.size() >= 2) {
             novel.setAuthor(textElements.get(0).text().trim());
+        }
+
+        // 获取连载状态 - 在标签列表中查找"连载"或"完结"
+        for (Element textElement : textElements) {
+            String text = textElement.text().trim();
+            if ("完结".equals(text)) {
+                novel.setStatus(2);  // 2-完结
+                break;
+            } else if ("连载".equals(text)) {
+                novel.setStatus(1);  // 1-连载
+                break;
+            }
         }
 
         Element descMeta = doc.select("meta[name=description]").first();

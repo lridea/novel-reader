@@ -12,6 +12,7 @@
             placeholder="搜索书名/作者"
             clearable
             @keyup.enter="handleSearch"
+            @input="onSearchInput"
           >
             <template #append>
               <el-button :icon="Search" @click="handleSearch" />
@@ -67,7 +68,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { Reading, Search, Star, User, Setting, SwitchButton } from '@element-plus/icons-vue'
 import { crawlerApi } from '../api'
@@ -87,13 +88,26 @@ const isFavoritesPage = computed(() => {
   return route.path === '/favorites'
 })
 
+watch(() => route.query.keyword, (newKeyword) => {
+  searchKeyword.value = newKeyword || ''
+})
+
+const onSearchInput = () => {
+  sessionStorage.setItem('searchKeyword', searchKeyword.value.trim())
+}
+
 const goHome = () => {
   router.push('/')
 }
 
 const handleSearch = () => {
-  if (searchKeyword.value.trim()) {
-    router.push({ path: '/', query: { keyword: searchKeyword.value.trim() } })
+  const keyword = searchKeyword.value.trim()
+  if (keyword) {
+    router.push({ path: '/', query: { keyword } })
+  } else {
+    if (route.query.keyword) {
+      router.push({ path: '/' })
+    }
   }
 }
 
@@ -168,16 +182,23 @@ const handleUserInfoUpdated = (event) => {
   user.value = event.detail
 }
 
+// 监听清空搜索关键字事件
+const handleClearSearchKeyword = () => {
+  searchKeyword.value = ''
+}
+
 onMounted(() => {
   loadUser()
   if (route.query.keyword) {
     searchKeyword.value = route.query.keyword
   }
   window.addEventListener('user-info-updated', handleUserInfoUpdated)
+  window.addEventListener('clear-search-keyword', handleClearSearchKeyword)
 })
 
 onUnmounted(() => {
   window.removeEventListener('user-info-updated', handleUserInfoUpdated)
+  window.removeEventListener('clear-search-keyword', handleClearSearchKeyword)
 })
 </script>
 

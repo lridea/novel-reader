@@ -108,7 +108,7 @@ public class SfCrawler implements BaseCrawler {
 
     private List<Novel> crawlListPage(String url, List<String> filterTags, LocalDateTime sinceTime, AtomicBoolean shouldStop) {
         List<Novel> novels = new ArrayList<>();
-
+        int tryCrawlCount = 0;
         try {
             Request request = buildRequest(url);
             try (Response response = executeWithRetry(request)) {
@@ -141,7 +141,9 @@ public class SfCrawler implements BaseCrawler {
                     }
 
                     if (sinceTime != null && fullNovel.getLatestUpdateTime() != null) {
-                        if (!fullNovel.getLatestUpdateTime().isAfter(sinceTime)) {
+                        // 至少存在三本书时间都早于爬取时间再停止爬取，防止网站出现错误数据
+                        tryCrawlCount++;
+                        if (!fullNovel.getLatestUpdateTime().isAfter(sinceTime) && tryCrawlCount >= 3) {
                             log.info("小说 {} 更新时间 {} 早于或等于增量时间 {}，停止继续爬取", 
                                 fullNovel.getTitle(), fullNovel.getLatestUpdateTime(), sinceTime);
                             shouldStop.set(true);
@@ -278,9 +280,9 @@ public class SfCrawler implements BaseCrawler {
                     novel.setWordCount(Long.parseLong(wordMatcher.group(1)));
                 }
                 if (wordInfo.contains("连载中")) {
-                    novel.setStatus(0);
+                    novel.setStatus(1);  // 1-连载
                 } else if (wordInfo.contains("完结")) {
-                    novel.setStatus(1);
+                    novel.setStatus(2);  // 2-完结
                 }
             } else if (text.startsWith("更新：")) {
                 String timeStr = text.replace("更新：", "").trim();
@@ -294,7 +296,11 @@ public class SfCrawler implements BaseCrawler {
             for (Element tagElement : tagElements) {
                 String tag = tagElement.text().trim();
                 if (!tag.isEmpty()) {
-                    tags.add(tag);
+                    // 处理带数量的标签格式，如 "双重开挂(294)" -> "双重开挂"
+                    tag = tag.replaceAll("\\s*\\(\\d+\\)$", "");
+                    if (!tag.isEmpty()) {
+                        tags.add(tag);
+                    }
                 }
             }
             if (!tags.isEmpty()) {

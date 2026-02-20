@@ -49,8 +49,7 @@
             </div>
           </div>
           <div class="update-info">
-            <span>最新章节：{{ novel.latestChapterTitle || '-' }}</span>
-            <span style="margin-left: 20px;">更新时间：{{ formatDateTime(novel.latestUpdateTime) }}</span>
+            <span>更新时间：{{ formatDateTime(novel.latestUpdateTime) }}</span>
           </div>
           <div class="tags-section">
             <!-- 爬取的标签 -->
@@ -119,15 +118,6 @@
             </el-button>
           </div>
         </div>
-      </div>
-    </el-card>
-
-    <el-card shadow="hover" style="margin-top: 20px;" v-if="novel.firstChaptersSummary">
-      <template #header>
-        <span>AI 概括（前3章）</span>
-      </template>
-      <div class="ai-summary">
-        {{ novel.firstChaptersSummary }}
       </div>
     </el-card>
 

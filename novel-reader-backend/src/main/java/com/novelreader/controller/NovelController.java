@@ -18,6 +18,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -47,7 +48,7 @@ public class NovelController {
     public Map<String, Object> getNovelsPage(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
-            @RequestParam(required = false) String platform,
+            @RequestParam(required = false) String platforms,
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String tag,
             @RequestParam(required = false) Integer status,
@@ -57,8 +58,8 @@ public class NovelController {
             @RequestParam(defaultValue = "updateTime") String sortBy,
             @RequestParam(defaultValue = "desc") String sortOrder) {
 
-        log.info("公开分页查询小说: page={}, size={}, platform={}, keyword={}, tag={}, status={}, wordCountMin={}, wordCountMax={}, favoriteCountMin={}, sortBy={}, sortOrder={}",
-                page, size, platform, keyword, tag, status, wordCountMin, wordCountMax, favoriteCountMin, sortBy, sortOrder);
+        log.info("公开分页查询小说: page={}, size={}, platforms={}, keyword={}, tag={}, status={}, wordCountMin={}, wordCountMax={}, favoriteCountMin={}, sortBy={}, sortOrder={}",
+                page, size, platforms, keyword, tag, status, wordCountMin, wordCountMax, favoriteCountMin, sortBy, sortOrder);
 
         Map<String, Object> result = new HashMap<>();
 
@@ -73,18 +74,41 @@ public class NovelController {
             sort = Sort.by("asc".equalsIgnoreCase(sortOrder) ? Sort.Direction.ASC : Sort.Direction.DESC, "latestUpdateTime");
         }
 
+        // 解析平台列表（逗号分隔）
+        List<String> platformList = null;
+        if (platforms != null && !platforms.isEmpty()) {
+            platformList = Arrays.asList(platforms.split(","));
+        }
+
         Pageable pageable = PageRequest.of(page, size, sort);
-        Page<Novel> novelPage = novelRepository.searchNovels(
-                platform,
-                keyword,
-                status,
-                tag,
-                wordCountMin,
-                wordCountMax,
-                favoriteCountMin,
-                null,
-                pageable
-        );
+        Page<Novel> novelPage;
+        
+        // 根据是否有平台列表选择查询方法
+        if (platformList != null && !platformList.isEmpty()) {
+            novelPage = novelRepository.searchNovelsByPlatforms(
+                    platformList,
+                    keyword,
+                    status,
+                    tag,
+                    wordCountMin,
+                    wordCountMax,
+                    favoriteCountMin,
+                    null,
+                    pageable
+            );
+        } else {
+            novelPage = novelRepository.searchNovels(
+                    null,
+                    keyword,
+                    status,
+                    tag,
+                    wordCountMin,
+                    wordCountMax,
+                    favoriteCountMin,
+                    null,
+                    pageable
+            );
+        }
 
         result.put("content", novelPage.getContent());
         result.put("totalElements", novelPage.getTotalElements());
@@ -182,10 +206,20 @@ public class NovelController {
      */
     @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/batch")
-    public Map<String, Object> batchDelete(@RequestBody Map<String, List<Long>> request) {
+    public Map<String, Object> batchDelete(@RequestBody Map<String, Object> request) {
         log.info("批量删除书籍: {}", request);
 
-        List<Long> ids = request.get("ids");
+        List<?> rawIds = (List<?>) request.get("ids");
+        List<Long> ids = rawIds.stream()
+                .map(id -> {
+                    if (id instanceof Integer) {
+                        return ((Integer) id).longValue();
+                    } else if (id instanceof Long) {
+                        return (Long) id;
+                    }
+                    return Long.parseLong(id.toString());
+                })
+                .collect(java.util.stream.Collectors.toList());
         return novelService.batchDelete(ids);
     }
 

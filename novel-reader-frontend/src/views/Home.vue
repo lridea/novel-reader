@@ -6,8 +6,8 @@
           <span class="filter-label">平台:</span>
           <div class="filter-buttons">
             <el-button
-              :type="!selectedPlatform ? 'primary' : ''"
-              @click="selectedPlatform = ''; filterAndLoad()"
+              :type="selectedPlatforms.length === 0 ? 'primary' : ''"
+              @click="selectedPlatforms = []; filterAndLoad()"
               size="small"
             >
               全部
@@ -15,8 +15,8 @@
             <el-button
               v-for="platform in platformOptions"
               :key="platform.value"
-              :type="selectedPlatform === platform.value ? 'primary' : ''"
-              @click="selectedPlatform = platform.value; filterAndLoad()"
+              :type="selectedPlatforms.includes(platform.value) ? 'primary' : ''"
+              @click="togglePlatform(platform.value)"
               size="small"
             >
               {{ platform.label }}
@@ -267,6 +267,12 @@
             </el-button>
           </div>
         </div>
+
+        <div class="filter-row reset-row">
+          <el-button type="info" @click="resetFilters" size="small">
+            重置筛选
+          </el-button>
+        </div>
       </div>
 
       <div v-loading="loading" class="novel-grid">
@@ -423,7 +429,7 @@ const tags = ref([])
 const total = ref(0)
 const currentPage = ref(1)
 const pageSize = ref(20)
-const selectedPlatform = ref('')
+const selectedPlatforms = ref([])
 const selectedTag = ref('')
 const selectedStatus = ref('')
 const wordCountMin = ref('')
@@ -549,8 +555,8 @@ const loadData = async (append = false) => {
       sortOrder: sortOrder.value
     }
 
-    if (selectedPlatform.value) {
-      params.platform = selectedPlatform.value
+    if (selectedPlatforms.value && selectedPlatforms.value.length > 0) {
+      params.platforms = selectedPlatforms.value.join(',')
     }
     if (selectedTag.value) {
       params.tag = selectedTag.value
@@ -621,8 +627,50 @@ const filterAndLoad = () => {
   sessionStorage.removeItem('homeNovelsData')
   sessionStorage.removeItem('homeTotal')
   
+  // 从 sessionStorage 读取最新的搜索关键字
+  const savedKeyword = sessionStorage.getItem('searchKeyword')
+  if (savedKeyword !== null) {
+    keyword.value = savedKeyword
+    sessionStorage.removeItem('searchKeyword')
+  }
+  
   currentPage.value = 1
   loadData(false)
+}
+
+// 切换平台选择（多选）
+const togglePlatform = (platform) => {
+  const index = selectedPlatforms.value.indexOf(platform)
+  if (index > -1) {
+    selectedPlatforms.value.splice(index, 1)
+  } else {
+    selectedPlatforms.value.push(platform)
+  }
+  filterAndLoad()
+}
+
+// 重置所有筛选条件
+const resetFilters = () => {
+  selectedPlatforms.value = []
+  selectedStatus.value = ''
+  selectedTag.value = ''
+  wordCountMin.value = ''
+  wordCountMax.value = ''
+  favoriteCountMin.value = ''
+  sortBy.value = 'updateTime'
+  sortOrder.value = 'desc'
+  keyword.value = ''
+  
+  // 清除搜索框的 sessionStorage
+  sessionStorage.removeItem('searchKeyword')
+  
+  // 清除 URL 中的 keyword 参数并通知搜索框清空
+  if (route.query.keyword) {
+    router.replace({ path: '/', query: {} })
+  }
+  window.dispatchEvent(new CustomEvent('clear-search-keyword'))
+  
+  filterAndLoad()
 }
 
 const loadTags = async () => {
@@ -634,9 +682,13 @@ const loadTags = async () => {
   }
 }
 
-watch(() => route.query.keyword, (newKeyword) => {
+let isInitialized = false
+
+watch(() => route.query.keyword, (newKeyword, oldKeyword) => {
   keyword.value = newKeyword || ''
-  filterAndLoad()
+  if (isInitialized) {
+    filterAndLoad()
+  }
 })
 
 onMounted(async () => {
@@ -660,6 +712,7 @@ onMounted(async () => {
   
   loadTags()
   startTagAutoScroll()
+  isInitialized = true
 })
 
 onUnmounted(() => {
@@ -729,6 +782,13 @@ const startTagAutoScroll = () => {
 
 .filter-row:last-child {
   margin-bottom: 0;
+}
+
+.reset-row {
+  justify-content: flex-end;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #ebeef5;
 }
 
 .filter-label {
@@ -1220,6 +1280,14 @@ const startTagAutoScroll = () => {
     padding: 16px 0;
     color: #909399;
     font-size: 13px;
+  }
+
+  /* 重置按钮行 */
+  .reset-row {
+    justify-content: center;
+    border-top: none;
+    margin-top: 4px;
+    padding-top: 0;
   }
 
   /* 隐藏PC端分页 */
