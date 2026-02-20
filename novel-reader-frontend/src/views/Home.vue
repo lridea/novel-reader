@@ -268,10 +268,32 @@
           </div>
         </div>
 
-        <div class="filter-row reset-row">
-          <el-button type="info" @click="resetFilters" size="small">
-            重置筛选
-          </el-button>
+        <!-- PC端重置按钮 -->
+        <div class="filter-row reset-row pc-reset-row">
+          <span class="filter-label"></span>
+          <div class="filter-buttons">
+            <el-button type="info" @click="resetFilters" size="small">
+              重置
+            </el-button>
+          </div>
+        </div>
+
+        <!-- 移动端搜索和重置 -->
+        <div class="filter-row reset-row mobile-search-row">
+          <div class="mobile-search-wrapper">
+            <el-input
+              v-model="keyword"
+              placeholder="搜索书名/作者"
+              size="small"
+              clearable
+              @keyup.enter="handleKeywordSearch"
+              class="mobile-search-input"
+            />
+            <el-button :icon="Search" @click="handleKeywordSearch" size="small" class="mobile-search-btn" />
+            <el-button type="info" @click="resetFilters" size="small">
+              重置
+            </el-button>
+          </div>
         </div>
       </div>
 
@@ -375,11 +397,48 @@ import { ArrowDown, ArrowUp, Search, Star, ChatDotRound, Loading } from '@elemen
 const router = useRouter()
 const route = useRoute()
 
+const loading = ref(false)
+const novels = ref([])
+const tags = ref([])
+const total = ref(0)
+const currentPage = ref(1)
+const pageSize = ref(20)
+const selectedPlatforms = ref([])
+const selectedTag = ref('')
+const selectedStatus = ref('')
+const wordCountMin = ref('')
+const wordCountMax = ref('')
+const favoriteCountMin = ref('')
+const sortBy = ref('updateTime')
+const sortOrder = ref('desc')
+const keyword = ref('')
+
+const defaultCover = 'https://via.placeholder.com/150x200?text=No+Cover'
+
+// 移动端检测
+const isMobile = ref(false)
+const checkMobile = () => {
+  isMobile.value = window.innerWidth <= 768
+}
+
 // 保存滚动位置和分页数据
 const saveScrollPosition = () => {
   sessionStorage.setItem('homeScrollPosition', window.scrollY.toString())
   sessionStorage.setItem('homeCurrentPage', currentPage.value.toString())
   sessionStorage.setItem('homeTotal', total.value.toString())
+  
+  // 保存筛选条件
+  sessionStorage.setItem('homeFilters', JSON.stringify({
+    selectedPlatforms: selectedPlatforms.value,
+    selectedTag: selectedTag.value,
+    selectedStatus: selectedStatus.value,
+    wordCountMin: wordCountMin.value,
+    wordCountMax: wordCountMax.value,
+    favoriteCountMin: favoriteCountMin.value,
+    sortBy: sortBy.value,
+    sortOrder: sortOrder.value,
+    keyword: keyword.value
+  }))
   
   // 移动端额外保存已加载的数据
   if (isMobile.value) {
@@ -393,6 +452,21 @@ const restoreScrollPosition = async () => {
   const savedPage = sessionStorage.getItem('homeCurrentPage')
   const savedTotal = sessionStorage.getItem('homeTotal')
   const savedNovels = sessionStorage.getItem('homeNovelsData')
+  const savedFilters = sessionStorage.getItem('homeFilters')
+  
+  // 恢复筛选条件
+  if (savedFilters) {
+    const filters = JSON.parse(savedFilters)
+    selectedPlatforms.value = filters.selectedPlatforms || []
+    selectedTag.value = filters.selectedTag || ''
+    selectedStatus.value = filters.selectedStatus || ''
+    wordCountMin.value = filters.wordCountMin || ''
+    wordCountMax.value = filters.wordCountMax || ''
+    favoriteCountMin.value = filters.favoriteCountMin || ''
+    sortBy.value = filters.sortBy || 'updateTime'
+    sortOrder.value = filters.sortOrder || 'desc'
+    keyword.value = filters.keyword || ''
+  }
   
   if (savedPage) {
     currentPage.value = parseInt(savedPage)
@@ -421,30 +495,7 @@ const restoreScrollPosition = async () => {
   sessionStorage.removeItem('homeCurrentPage')
   sessionStorage.removeItem('homeNovelsData')
   sessionStorage.removeItem('homeTotal')
-}
-
-const loading = ref(false)
-const novels = ref([])
-const tags = ref([])
-const total = ref(0)
-const currentPage = ref(1)
-const pageSize = ref(20)
-const selectedPlatforms = ref([])
-const selectedTag = ref('')
-const selectedStatus = ref('')
-const wordCountMin = ref('')
-const wordCountMax = ref('')
-const favoriteCountMin = ref('')
-const sortBy = ref('updateTime')
-const sortOrder = ref('desc')
-const keyword = ref('')
-
-const defaultCover = 'https://via.placeholder.com/150x200?text=No+Cover'
-
-// 移动端检测
-const isMobile = ref(false)
-const checkMobile = () => {
-  isMobile.value = window.innerWidth <= 768
+  sessionStorage.removeItem('homeFilters')
 }
 
 // 标签展开/收起状态
@@ -452,12 +503,12 @@ const showAllTags = ref(false)
 const tagSearchKeyword = ref('')
 const filteredTags = ref([])
 
-// 计算显示的标签（PC端默认显示前5个，移动端默认显示前3个，展开后显示全部）
+// 计算显示的标签（PC端默认显示前5个，移动端默认显示前2个，展开后显示全部）
 const displayedTags = computed(() => {
   if (showAllTags.value) {
     return tags.value
   }
-  const defaultCount = isMobile.value ? 3 : 5
+  const defaultCount = isMobile.value ? 2 : 5
   return tags.value.slice(0, defaultCount)
 })
 
@@ -649,6 +700,11 @@ const togglePlatform = (platform) => {
   filterAndLoad()
 }
 
+// 处理移动端搜索
+const handleKeywordSearch = () => {
+  filterAndLoad()
+}
+
 // 重置所有筛选条件
 const resetFilters = () => {
   selectedPlatforms.value = []
@@ -789,6 +845,15 @@ const startTagAutoScroll = () => {
   margin-top: 8px;
   padding-top: 8px;
   border-top: 1px solid #ebeef5;
+}
+
+/* PC端隐藏移动端搜索框，显示PC端重置按钮 */
+.mobile-search-row {
+  display: none;
+}
+
+.pc-reset-row {
+  display: flex;
 }
 
 .filter-label {
@@ -1284,10 +1349,76 @@ const startTagAutoScroll = () => {
 
   /* 重置按钮行 */
   .reset-row {
-    justify-content: center;
+    justify-content: flex-end;
     border-top: none;
     margin-top: 4px;
     padding-top: 0;
+  }
+
+  /* 移动端隐藏PC端重置按钮，显示移动端搜索行 */
+  .pc-reset-row {
+    display: none !important;
+  }
+
+  .mobile-search-row {
+    display: flex !important;
+    width: 100%;
+    padding: 0;
+    overflow-x: visible;
+    margin-left: 0;
+    margin-right: 0;
+  }
+
+  .mobile-search-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    flex-wrap: nowrap;
+  }
+
+  .mobile-search-input {
+    display: block;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .mobile-search-input :deep(.el-input) {
+    width: 100%;
+  }
+
+  .mobile-search-input :deep(.el-input__wrapper) {
+    width: 100%;
+  }
+
+  .mobile-search-btn {
+    flex-shrink: 0;
+    padding: 0 12px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .mobile-search-btn .el-icon {
+    font-size: 16px;
+  }
+
+  .mobile-search-wrapper .el-button--info {
+    height: 32px;
+    padding: 0 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .mobile-search-input :deep(.el-input__inner) {
+    height: 32px;
+    line-height: 32px;
+  }
+
+  .mobile-search-input :deep(.el-input__wrapper) {
+    padding: 0 8px;
   }
 
   /* 隐藏PC端分页 */

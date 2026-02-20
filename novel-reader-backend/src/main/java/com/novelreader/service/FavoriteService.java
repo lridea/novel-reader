@@ -130,6 +130,36 @@ public class FavoriteService {
         return result;
     }
 
+    @Transactional
+    public Map<String, Object> batchRemoveFavorites(Long userId, List<Integer> novelIds) {
+        log.info("批量取消收藏: userId={}, novelIds={}", userId, novelIds);
+
+        Map<String, Object> result = new HashMap<>();
+
+        List<Long> novelIdList = novelIds.stream()
+                .map(Integer::longValue)
+                .collect(Collectors.toList());
+
+        List<Favorite> favorites = favoriteRepository.findByUserIdAndNovelIdIn(userId, novelIdList);
+        
+        if (favorites.isEmpty()) {
+            result.put("success", false);
+            result.put("message", "未收藏这些小说");
+            return result;
+        }
+
+        for (Favorite favorite : favorites) {
+            favoriteRepository.delete(favorite);
+            novelRepository.decrementFavoriteCount(favorite.getNovelId());
+        }
+
+        result.put("success", true);
+        result.put("message", "批量取消收藏成功");
+        result.put("removedCount", favorites.size());
+
+        return result;
+    }
+
     public Map<String, Object> getFavoriteList(Long userId, Long categoryId, int page, int size, String sortBy, String keyword) {
         log.info("获取收藏列表: userId={}, categoryId={}, page={}, size={}, sortBy={}, keyword={}", userId, categoryId, page, size, sortBy, keyword);
 
@@ -222,6 +252,12 @@ public class FavoriteService {
             favoriteInfo.put("coverUrl", novel.getCoverUrl());
             favoriteInfo.put("description", novel.getDescription());
             favoriteInfo.put("status", novel.getStatus());
+            favoriteInfo.put("tags", novel.getTags());
+            favoriteInfo.put("userTags", novel.getUserTags());
+            favoriteInfo.put("wordCount", novel.getWordCount());
+            favoriteInfo.put("favoriteCount", novel.getFavoriteCount());
+            favoriteInfo.put("commentCount", novel.getCommentCount());
+            favoriteInfo.put("dislikeCount", novel.getDislikeCount());
         }
 
         return favoriteInfo;

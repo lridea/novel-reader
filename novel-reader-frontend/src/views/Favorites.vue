@@ -1,66 +1,76 @@
 <template>
   <div class="favorites-page">
     <div class="container">
-      <div class="page-header">
-        <h2 class="page-title">我的收藏</h2>
-        <el-button type="primary" @click="showCategoryManager = true">
-          管理收藏夹
-        </el-button>
-      </div>
-
-      <div class="toolbar">
-        <div class="category-selector" v-if="categories.length > 0">
-          <div class="selected-category" @click="toggleCategoryExpand">
-            <span class="category-name">{{ currentCategory?.name || '选择收藏夹' }}</span>
-            <span class="category-badge">{{ currentCategory?.favoriteCount || 0 }}</span>
-            <el-icon class="expand-icon" :class="{ expanded: isCategoryExpanded }"><ArrowDown /></el-icon>
-          </div>
-          <div class="category-dropdown" v-show="isCategoryExpanded">
-            <div
-              v-for="category in categories"
-              :key="category.id"
-              :class="['category-option', currentCategoryId === category.id ? 'active' : '']"
-              @click="selectCategory(category.id)"
-            >
-              <span class="category-name">{{ category.name }}</span>
-              <span class="category-badge">{{ category.favoriteCount || 0 }}</span>
-            </div>
-          </div>
+      <!-- 筛选卡片 -->
+      <div class="filter-section">
+        <div class="page-header">
+          <h2 class="page-title">我的收藏</h2>
+          <el-button type="primary" @click="showCategoryManager = true">
+            管理收藏夹
+          </el-button>
         </div>
 
-        <div class="filter-bar">
-          <div class="search-wrapper">
-            <el-input
-              v-model="searchKeyword"
-              placeholder="搜索书籍名称"
-              class="search-input"
-              clearable
-              @clear="handleSearch"
-              @keyup.enter="handleSearch"
-            >
-              <template #prefix>
-                <el-icon><Search /></el-icon>
-              </template>
-            </el-input>
-            <el-button type="primary" @click="handleSearch">搜索</el-button>
+        <div class="toolbar">
+          <div class="category-selector" v-if="categories.length > 0">
+            <div class="selected-category" @click="toggleCategoryExpand">
+              <span class="category-name">{{ currentCategory?.name || '选择收藏夹' }}</span>
+              <span class="category-badge">{{ currentCategory?.favoriteCount || 0 }}</span>
+              <el-icon class="expand-icon" :class="{ expanded: isCategoryExpanded }"><ArrowDown /></el-icon>
+            </div>
+            <div class="category-dropdown" v-show="isCategoryExpanded">
+              <div
+                v-for="category in categories"
+                :key="category.id"
+                :class="['category-option', currentCategoryId === category.id ? 'active' : '']"
+                @click="selectCategory(category.id)"
+              >
+                <span class="category-name">{{ category.name }}</span>
+                <span class="category-badge">{{ category.favoriteCount || 0 }}</span>
+              </div>
+            </div>
           </div>
-          <div class="sort-wrapper">
-            <span class="sort-label">排序：</span>
-            <div class="sort-buttons-wrapper">
-              <el-button-group class="sort-buttons">
-                <el-button
-                  :type="sortBy === 'createdAt' ? 'primary' : 'default'"
-                  @click="setSortBy('createdAt')"
-                >
-                  收藏时间
-                </el-button>
-                <el-button
-                  :type="sortBy === 'updateTime' ? 'primary' : 'default'"
-                  @click="setSortBy('updateTime')"
-                >
-                  更新时间
-                </el-button>
-              </el-button-group>
+
+          <div class="filter-bar">
+            <div class="search-wrapper">
+              <el-input
+                v-model="searchKeyword"
+                placeholder="搜索书籍名称"
+                class="search-input"
+                clearable
+                @clear="handleSearch"
+                @keyup.enter="handleSearch"
+              >
+                <template #prefix>
+                  <el-icon><Search /></el-icon>
+                </template>
+              </el-input>
+              <el-button type="primary" @click="handleSearch">搜索</el-button>
+            </div>
+            <div class="sort-wrapper">
+              <span class="sort-label">排序：</span>
+              <div class="sort-buttons-wrapper">
+                <el-button-group class="sort-buttons">
+                  <el-button
+                    :type="sortBy === 'createdAt' ? 'primary' : 'default'"
+                    @click="setSortBy('createdAt')"
+                  >
+                    收藏时间
+                  </el-button>
+                  <el-button
+                    :type="sortBy === 'updateTime' ? 'primary' : 'default'"
+                    @click="setSortBy('updateTime')"
+                  >
+                    更新时间
+                  </el-button>
+                </el-button-group>
+              </div>
+              <el-button
+                :type="isBatchMode ? 'danger' : 'warning'"
+                @click="toggleBatchMode"
+                class="batch-btn"
+              >
+                {{ isBatchMode ? '取消' : '批量删除' }}
+              </el-button>
             </div>
           </div>
         </div>
@@ -70,9 +80,16 @@
         <div
           v-for="novel in favorites"
           :key="novel.id"
-          class="novel-card"
-          @click="goDetail(novel.id)"
+          :class="['novel-card', { 'selected': selectedIds.includes(novel.id) }]"
+          @click="handleCardClick(novel.id)"
         >
+          <el-checkbox
+            v-if="isBatchMode"
+            :model-value="selectedIds.includes(novel.id)"
+            class="batch-checkbox"
+            @click.stop
+            @change="toggleSelect(novel.id)"
+          />
           <div class="cover-wrapper">
             <img :src="novel.coverUrl || defaultCover" :alt="novel.title" class="cover" />
             <div class="platform-tag" :class="novel.platform">
@@ -82,24 +99,57 @@
           <div class="info">
             <h3 class="title">{{ novel.title }}</h3>
             <p class="author">{{ novel.author }}</p>
-            <div class="meta">
-              <span class="meta-item">
-                <el-icon><Timer /></el-icon>
-                更新：{{ formatDate(novel.latestUpdateTime) }}
-              </span>
-              <span class="meta-item">
-                <el-icon><Calendar /></el-icon>
-                收藏：{{ formatDate(novel.createdAt) }}
-              </span>
+            <div class="tags" v-if="parseTags(novel.tags).length > 0 || parseTags(novel.userTags).length > 0">
+              <div class="tags-scroll">
+                <el-tag
+                  v-for="tag in parseTags(novel.tags)"
+                  :key="'crawl-' + tag"
+                  size="small"
+                  type="warning"
+                >
+                  {{ tag }}
+                </el-tag>
+                <el-tag
+                  v-for="tag in parseTags(novel.userTags)"
+                  :key="'user-' + tag"
+                  size="small"
+                  type="danger"
+                >
+                  {{ tag }}
+                </el-tag>
+              </div>
             </div>
-            <p v-if="novel.note" class="note">{{ novel.note }}</p>
-          </div>
-          <div class="actions">
-            <el-button type="danger" size="small" @click.stop="removeFavorite(novel.id)">
-              取消收藏
-            </el-button>
+            <p class="desc" v-if="novel.description">{{ novel.description }}</p>
+            <div class="meta">
+              <span>{{ formatWordCount(novel.wordCount) }}</span>
+              <span class="meta-item"><el-icon><Clock /></el-icon>{{ formatDate(novel.latestUpdateTime) }}</span>
+            </div>
+            <div class="stats-row">
+              <div class="stats">
+                <span class="stat-item">
+                  <el-icon><Star /></el-icon>
+                  {{ novel.favoriteCount || 0 }}
+                </span>
+                <span class="stat-item">
+                  <el-icon><ChatDotRound /></el-icon>
+                  {{ novel.commentCount || 0 }}
+                </span>
+                <span class="stat-item">
+                  <svg class="dislike-icon" viewBox="0 0 24 24" width="14" height="14" style="transform: rotate(180deg) scaleX(-1);">
+                    <path d="M9 21h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-2c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L14.17 1 7.58 7.59C7.22 7.95 7 8.45 7 9v10c0 1.1.9 2 2 2zM9 9l4.34-4.34L12 10h9v2l-3 7H9V9zM1 9h4v12H1V9z"/>
+                  </svg>
+                  {{ novel.dislikeCount || 0 }}
+                </span>
+              </div>
+              <span class="favorite-time"><el-icon><Star /></el-icon>{{ formatDate(novel.createdAt) }}</span>
+            </div>
           </div>
         </div>
+      </div>
+
+      <div v-if="isBatchMode && selectedIds.length > 0" class="batch-actions">
+        <span class="selected-count">已选择 {{ selectedIds.length }} 本</span>
+        <el-button type="danger" @click="batchRemove">批量取消收藏</el-button>
       </div>
 
       <div v-if="!loading && favorites.length === 0" class="empty">
@@ -200,7 +250,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { crawlerApi, favoriteApi } from '../api'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, Timer, Calendar, ArrowDown } from '@element-plus/icons-vue'
+import { Search, Timer, Calendar, ArrowDown, Star, ChatDotRound, StarFilled, Clock } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const loading = ref(false)
@@ -221,6 +271,52 @@ const editCategoryForm = ref({ id: null, name: '', description: '' })
 const searchKeyword = ref('')
 const sortBy = ref('createdAt')
 
+const isBatchMode = ref(false)
+const selectedIds = ref([])
+
+const toggleBatchMode = () => {
+  isBatchMode.value = !isBatchMode.value
+  if (!isBatchMode.value) {
+    selectedIds.value = []
+  }
+}
+
+const toggleSelect = (id) => {
+  const index = selectedIds.value.indexOf(id)
+  if (index > -1) {
+    selectedIds.value.splice(index, 1)
+  } else {
+    selectedIds.value.push(id)
+  }
+}
+
+const handleCardClick = (id) => {
+  if (isBatchMode.value) {
+    toggleSelect(id)
+  } else {
+    goDetail(id)
+  }
+}
+
+const batchRemove = async () => {
+  if (selectedIds.value.length === 0) return
+  
+  try {
+    const response = await favoriteApi.batchRemove(selectedIds.value)
+    if (response.success) {
+      ElMessage.success(`成功取消收藏 ${selectedIds.value.length} 本书籍`)
+      selectedIds.value = []
+      isBatchMode.value = false
+      await loadCategories()
+      await loadData(false)
+    } else {
+      ElMessage.error(response.message || '批量取消收藏失败')
+    }
+  } catch (error) {
+    ElMessage.error('批量取消收藏失败')
+  }
+}
+
 // 移动端检测
 const isMobile = ref(false)
 const checkMobile = () => {
@@ -233,6 +329,8 @@ const saveScrollPosition = () => {
   sessionStorage.setItem('favoritesCurrentPage', currentPage.value.toString())
   sessionStorage.setItem('favoritesTotal', total.value.toString())
   sessionStorage.setItem('favoritesCategoryId', currentCategoryId.value?.toString() || '')
+  sessionStorage.setItem('favoritesSortBy', sortBy.value)
+  sessionStorage.setItem('favoritesSearchKeyword', searchKeyword.value)
   
   // 移动端额外保存已加载的数据
   if (isMobile.value) {
@@ -247,6 +345,8 @@ const restoreScrollPosition = async () => {
   const savedTotal = sessionStorage.getItem('favoritesTotal')
   const savedData = sessionStorage.getItem('favoritesData')
   const savedCategoryId = sessionStorage.getItem('favoritesCategoryId')
+  const savedSortBy = sessionStorage.getItem('favoritesSortBy')
+  const savedSearchKeyword = sessionStorage.getItem('favoritesSearchKeyword')
   
   if (savedPage) {
     currentPage.value = parseInt(savedPage)
@@ -260,6 +360,14 @@ const restoreScrollPosition = async () => {
     currentCategoryId.value = parseInt(savedCategoryId)
   }
   
+  if (savedSortBy) {
+    sortBy.value = savedSortBy
+  }
+  
+  if (savedSearchKeyword) {
+    searchKeyword.value = savedSearchKeyword
+  }
+  
   // 移动端直接恢复缓存数据，PC端重新加载
   if (isMobile.value && savedData) {
     favorites.value = JSON.parse(savedData)
@@ -268,10 +376,11 @@ const restoreScrollPosition = async () => {
     await loadData(false)
   }
   
+  // 数据加载完成后再滚动，避免闪烁
   if (savedPosition) {
-    setTimeout(() => {
+    requestAnimationFrame(() => {
       window.scrollTo(0, parseInt(savedPosition))
-    }, 100)
+    })
   }
   
   // 清理缓存
@@ -280,6 +389,8 @@ const restoreScrollPosition = async () => {
   sessionStorage.removeItem('favoritesData')
   sessionStorage.removeItem('favoritesTotal')
   sessionStorage.removeItem('favoritesCategoryId')
+  sessionStorage.removeItem('favoritesSortBy')
+  sessionStorage.removeItem('favoritesSearchKeyword')
 }
 
 // 滚动监听 - 移动端自动加载更多
@@ -342,6 +453,24 @@ const formatDate = (dateStr) => {
   if (!dateStr) return ''
   const date = new Date(dateStr)
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}:${String(date.getSeconds()).padStart(2, '0')}`
+}
+
+const parseTags = (tagsStr) => {
+  if (!tagsStr) return []
+  try {
+    const parsed = JSON.parse(tagsStr)
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return tagsStr.split(',').filter(tag => tag.trim())
+  }
+}
+
+const formatWordCount = (count) => {
+  if (!count) return '-'
+  if (count >= 10000) {
+    return (count / 10000).toFixed(1) + '万'
+  }
+  return count.toLocaleString()
 }
 
 const goDetail = (id) => {
@@ -550,6 +679,15 @@ onMounted(async () => {
   max-width: 1400px;
   margin: 0 auto;
   padding: 0 24px;
+}
+
+/* 筛选区域卡片 */
+.filter-section {
+  background: #fff;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
 }
 
 .page-header {
@@ -840,13 +978,39 @@ onMounted(async () => {
   margin: 0 0 8px 0;
 }
 
+.tags {
+  margin-bottom: 8px;
+  overflow: hidden;
+}
+
+.tags-scroll {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.tags-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.desc {
+  font-size: 13px;
+  color: #606266;
+  line-height: 1.5;
+  margin: 0 0 8px 0;
+  height: 40px;
+  overflow: hidden;
+}
+
 .meta {
+  display: flex;
+  justify-content: space-between;
   font-size: 12px;
   color: #909399;
   margin-bottom: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
 }
 
 .meta-item {
@@ -855,17 +1019,101 @@ onMounted(async () => {
   gap: 4px;
 }
 
-.note {
-  font-size: 13px;
-  color: #606266;
-  margin: 0;
-  padding: 8px;
-  background: #f5f7fa;
-  border-radius: 4px;
+.meta-item .el-icon {
+  font-size: 12px;
+  position: relative;
+  top: 0px;
 }
 
-.actions {
-  padding: 0 12px 12px;
+.favorite-time {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+}
+
+.favorite-time .el-icon {
+  font-size: 12px;
+  position: relative;
+  top: 0px;
+}
+
+.stats-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.stats {
+  display: flex;
+  gap: 16px;
+  font-size: 13px;
+}
+
+.stat-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 500;
+}
+
+.stat-item:nth-child(1) {
+  color: #F56C6C;
+}
+
+.stat-item:nth-child(1) .el-icon {
+  color: #F56C6C;
+}
+
+.stat-item:nth-child(2) {
+  color: #409EFF;
+}
+
+.stat-item:nth-child(2) .el-icon {
+  color: #409EFF;
+}
+
+.stat-item:nth-child(3) {
+  color: #909399;
+}
+
+.stat-item .dislike-icon {
+  fill: currentColor;
+}
+
+.batch-btn {
+  margin-left: 12px;
+}
+
+.batch-checkbox {
+  position: absolute;
+  top: 0px;
+  right: 8px;
+}
+
+.novel-card.selected {
+  border: 2px solid #409eff;
+  box-shadow: 0 0 8px rgba(64, 158, 255, 0.3);
+}
+
+.batch-actions {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #fff;
+  padding: 12px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+  z-index: 100;
+}
+
+.selected-count {
+  color: #606266;
+  font-size: 14px;
 }
 
 .empty {
@@ -909,7 +1157,7 @@ onMounted(async () => {
 
 .category-info {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: 12px;
   flex: 1;
 }
@@ -955,10 +1203,28 @@ onMounted(async () => {
   flex: 1;
 }
 
+.new-category-input-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex: 1;
+}
+
 /* 移动端适配 */
 @media screen and (max-width: 768px) {
   .favorites-page {
-    padding: 0 12px;
+    padding: 0 4px;
+  }
+
+  .container {
+    padding: 0 4px;
+  }
+
+  .filter-section {
+    padding: 12px 12px 8px 12px;
+    margin-top: 12px;
+    margin-bottom: 12px;
+    border-radius: 8px;
   }
 
   .page-header {
@@ -966,7 +1232,8 @@ onMounted(async () => {
     gap: 12px;
     align-items: center;
     justify-content: space-between;
-    padding-top: 12px;
+    padding-top: 0;
+    margin-bottom: 12px;
   }
 
   .page-header h2 {
@@ -994,6 +1261,7 @@ onMounted(async () => {
 
   .filter-bar .sort-buttons {
     margin-left: 0;
+    margin-top: 8px;
     width: 100%;
     display: flex;
     justify-content: center;
@@ -1026,64 +1294,187 @@ onMounted(async () => {
 
   .novel-grid {
     grid-template-columns: 1fr;
-    gap: 12px;
+    gap: 8px;
+    min-height: auto;
+    align-content: start;
   }
 
   .novel-card {
     display: flex;
     flex-direction: row;
+    padding: 6px;
     height: auto;
+    min-height: 100px;
   }
 
   .cover-wrapper {
-    width: 100px;
-    height: 140px;
+    width: 75px;
+    height: 100px;
     flex-shrink: 0;
   }
 
   .cover {
     height: 100%;
+    border-radius: 4px;
   }
 
   .platform-tag {
-    top: 4px;
-    left: 4px;
-    font-size: 10px;
-    padding: 1px 4px;
+    top: 2px;
+    left: 2px;
+    font-size: 9px;
+    padding: 1px 3px;
+    border-radius: 2px;
   }
 
   .info {
     flex: 1;
-    padding: 8px;
-    display: flex;
-    flex-direction: column;
+    padding: 0 0 0 8px;
+    min-width: 0;
+  }
+
+  .info > * {
+    margin: 0 !important;
+    padding: 0 !important;
   }
 
   .title {
     font-size: 14px;
-    margin-bottom: 4px;
+    margin-bottom: 2px !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.2;
   }
 
   .author {
     font-size: 12px;
-    margin-bottom: 4px;
+    margin-bottom: 2px !important;
+    color: #909399;
+    line-height: 1.1;
+  }
+
+  .tags {
+    margin-bottom: 2px !important;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    white-space: nowrap;
+  }
+
+  .tags::-webkit-scrollbar {
+    display: none;
+  }
+
+  .tags-scroll {
+    display: inline-flex;
+    gap: 4px;
+    flex-wrap: nowrap;
+  }
+
+  .tags-scroll .el-tag {
+    flex-shrink: 0;
+    font-size: 11px;
+    height: 18px;
+    padding: 0 4px;
+    white-space: nowrap;
+  }
+
+  .desc {
+    font-size: 11px;
+    color: #909399;
+    margin-bottom: 2px !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.1;
+    max-width: 100%;
+    height: auto !important;
   }
 
   .meta {
-    margin-top: auto;
-    margin-bottom: 4px;
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: #909399;
+    margin-bottom: 2px !important;
+    line-height: 1.1;
   }
 
-  .actions {
-    padding: 0 8px 8px;
-    position: absolute;
-    top: 8px;
-    right: 8px;
+  .meta-item {
+    display: flex;
+    align-items: center;
+    gap: 2px;
   }
 
-  .actions .el-button {
-    padding: 4px 8px;
+  .meta-item .el-icon {
+    font-size: 11px;
+    position: relative;
+    top: 0px;
+  }
+
+  .favorite-time {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    font-size: 11px;
+    color: #909399;
+  }
+
+  .favorite-time .el-icon {
+    font-size: 11px;
+    position: relative;
+    top: 0px;
+  }
+
+  .stats-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .stats {
+    display: flex;
+    gap: 12px;
     font-size: 12px;
+  }
+
+  .stat-item {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+  }
+
+  .stat-item .el-icon {
+    font-size: 12px;
+  }
+
+  .stat-item .dislike-icon {
+    width: 12px;
+    height: 12px;
+  }
+
+  .batch-btn {
+    margin-left: 8px;
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+
+  .batch-checkbox {
+    top: -3px;
+    right: 6px;
+  }
+
+  .batch-actions {
+    padding: 10px 16px;
+  }
+
+  .selected-count {
+    font-size: 13px;
+  }
+
+  .batch-actions .el-button {
+    padding: 6px 12px;
+    font-size: 13px;
   }
 
   /* 收藏夹管理弹窗移动端适配 */
@@ -1098,29 +1489,32 @@ onMounted(async () => {
   }
 
   .category-item {
-    flex-direction: column;
+    flex-direction: row;
     gap: 8px;
-    align-items: flex-start;
+    align-items: center;
     padding: 10px 0;
   }
 
   .category-info {
-    width: 100%;
-    flex-wrap: wrap;
+    width: auto;
+    flex: 1;
+    flex-wrap: nowrap;
     gap: 6px;
+    align-items: baseline;
   }
 
   .category-info .category-name {
     min-width: auto;
-    max-width: 150px;
+    max-width: 120px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
   .category-actions {
-    width: 100%;
+    width: auto;
     justify-content: flex-end;
+    flex-shrink: 0;
   }
 
   .new-category-section {
@@ -1159,6 +1553,7 @@ onMounted(async () => {
   .toolbar {
     flex-direction: column;
     gap: 12px;
+    margin-bottom: 0;
   }
 
   .toolbar .category-selector {
@@ -1192,8 +1587,9 @@ onMounted(async () => {
     display: flex;
     align-items: center;
     justify-content: flex-start;
-    gap: 4px;
-    width: auto;
+    gap: 8px;
+    width: 100%;
+    flex-wrap: nowrap;
   }
 
   .toolbar .sort-label {
@@ -1203,15 +1599,25 @@ onMounted(async () => {
 
   .toolbar .sort-buttons-wrapper {
     display: inline-flex;
+    flex: 0 0 auto;
   }
 
   .toolbar .sort-buttons {
     margin-left: 0 !important;
     flex-shrink: 0;
+    display: flex;
+    flex-wrap: nowrap;
   }
 
   .toolbar .sort-buttons .el-button {
     margin-left: 0 !important;
+    padding: 6px 12px;
+    font-size: 13px;
+  }
+
+  .toolbar .batch-btn {
+    margin-left: auto;
+    flex-shrink: 0;
   }
 
   /* 书籍卡片移动端适配 - 参考首页样式 */
@@ -1252,29 +1658,8 @@ onMounted(async () => {
     white-space: nowrap;
   }
 
-  .meta {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    font-size: 11px;
-    color: #909399;
-    margin-top: auto;
-    margin-bottom: 0;
-  }
-
-  .meta-item {
-    display: flex;
-    align-items: center;
-    gap: 2px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
   .note {
-    font-size: 11px;
-    margin-top: 4px;
-    padding: 4px 6px;
+    display: none;
   }
 }
 </style>

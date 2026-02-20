@@ -54,6 +54,30 @@ public class FavoriteController {
         return favoriteService.removeFavorite(userId, novelId, categoryId);
     }
 
+    @DeleteMapping("/batch")
+    public Map<String, Object> batchRemoveFavorites(@RequestBody Map<String, Object> request) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        if (authentication == null || !authentication.isAuthenticated()) {
+            Map<String, Object> error = new java.util.HashMap<>();
+            error.put("success", false);
+            error.put("message", "未登录");
+            return error;
+        }
+
+        Long userId = (Long) authentication.getPrincipal();
+        java.util.List<Integer> novelIds = (java.util.List<Integer>) request.get("novelIds");
+        
+        if (novelIds == null || novelIds.isEmpty()) {
+            Map<String, Object> error = new java.util.HashMap<>();
+            error.put("success", false);
+            error.put("message", "请选择要取消收藏的书籍");
+            return error;
+        }
+
+        return favoriteService.batchRemoveFavorites(userId, novelIds);
+    }
+
     @GetMapping
     public Map<String, Object> getFavoriteList(
             @RequestParam(required = false) Long categoryId,

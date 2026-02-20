@@ -307,6 +307,10 @@ export const favoriteApi = {
     return USE_MOCK ? mockApi.removeFavorite(novelId) : api.delete(`/favorites/${novelId}`)
   },
 
+  batchRemove(novelIds) {
+    return USE_MOCK ? mockApi.batchRemoveFavorites(novelIds) : api.delete('/favorites/batch', { data: { novelIds } })
+  },
+
   getFavorites(params) {
     return USE_MOCK ? mockApi.getFavorites(params) : api.get('/favorites', { params })
   },

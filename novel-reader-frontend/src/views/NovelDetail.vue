@@ -22,7 +22,7 @@
           </el-image>
         </div>
         <div class="info-section">
-          <h2 class="title">{{ novel.title }}</h2>
+          <h2 class="title" @click="copyTitle" title="点击复制书名">{{ novel.title }}</h2>
           <div class="meta-info">
             <el-tag>{{ getPlatformName(novel.platform) }}</el-tag>
             <div class="author-row">
@@ -50,6 +50,7 @@
           </div>
           <div class="update-info">
             <span>更新时间：{{ formatDateTime(novel.latestUpdateTime) }}</span>
+            <span class="word-count">字数：{{ formatWordCount(novel.wordCount) }}</span>
           </div>
           <div class="tags-section">
             <!-- 爬取的标签 -->
@@ -414,20 +415,21 @@
     <el-dialog
       v-model="showCategoryDialog"
       title="选择收藏夹"
-      width="400px"
+      width="320px"
     >
-      <div class="category-buttons">
-        <el-button
+      <el-select
+        v-model="selectedCategoryId"
+        placeholder="请选择收藏夹"
+        class="category-select"
+        style="width: 100%"
+      >
+        <el-option
           v-for="category in categories"
           :key="category.id"
-          :type="selectedCategoryId === category.id ? 'primary' : 'default'"
-          class="category-btn"
-          @click="selectedCategoryId = category.id"
-        >
-          <span class="category-name">{{ category.name }}</span>
-          <span class="category-count">({{ category.favoriteCount || 0 }}本)</span>
-        </el-button>
-      </div>
+          :label="category.name + ' (' + (category.favoriteCount || 0) + '本)'"
+          :value="category.id"
+        />
+      </el-select>
       <template #footer>
         <el-button @click="showCategoryDialog = false">取消</el-button>
         <el-button type="primary" @click="confirmAddFavorite">确定</el-button>
@@ -438,7 +440,10 @@
     <el-dialog
       v-model="addTagDialogVisible"
       title="申请添加标签"
-      width="400px"
+      width="90%"
+      class="add-tag-dialog"
+      :style="{ maxWidth: '320px' }"
+      align-center
     >
       <el-form>
         <el-form-item label="标签名称">
@@ -494,6 +499,7 @@ const novel = ref({
   coverUrl: '',
   latestChapterTitle: '',
   latestUpdateTime: '',
+  wordCount: 0,
   firstChaptersSummary: '',
   lastCrawlTime: '',
   crawlCount: 0,
@@ -636,6 +642,36 @@ const formatDateTime = (datetime) => {
   const minutes = String(date.getMinutes()).padStart(2, '0')
   const seconds = String(date.getSeconds()).padStart(2, '0')
   return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
+}
+
+const formatWordCount = (count) => {
+  if (!count) return '-'
+  if (count >= 10000) {
+    return (count / 10000).toFixed(1) + '万'
+  }
+  return count.toLocaleString()
+}
+
+const copyTitle = async () => {
+  if (!novel.value.title) return
+  try {
+    await navigator.clipboard.writeText(novel.value.title)
+    ElMessage.success('书名已复制到剪贴板')
+  } catch (err) {
+    const textArea = document.createElement('textarea')
+    textArea.value = novel.value.title
+    textArea.style.position = 'fixed'
+    textArea.style.left = '-9999px'
+    document.body.appendChild(textArea)
+    textArea.select()
+    try {
+      document.execCommand('copy')
+      ElMessage.success('书名已复制到剪贴板')
+    } catch (e) {
+      ElMessage.error('复制失败')
+    }
+    document.body.removeChild(textArea)
+  }
 }
 
 const parseTags = (tagsStr) => {
@@ -1328,6 +1364,12 @@ const submitTopComment = async () => {
   margin: 0 0 16px 0;
   font-size: 24px;
   color: #303133;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.title:hover {
+  color: #409eff;
 }
 
 .meta-info {
@@ -1389,6 +1431,12 @@ const submitTopComment = async () => {
   color: #909399;
   font-size: 14px;
   margin-bottom: 8px;
+  display: flex;
+  gap: 20px;
+}
+
+.word-count {
+  color: #606266;
 }
 
 .tags-section {
@@ -2022,6 +2070,7 @@ const submitTopComment = async () => {
     font-size: 18px;
     margin-bottom: 12px;
     text-align: center;
+    cursor: pointer;
   }
 
   .meta-info {
@@ -2059,6 +2108,12 @@ const submitTopComment = async () => {
 
   .update-info {
     text-align: center;
+    font-size: 12px;
+    justify-content: center;
+    gap: 12px;
+  }
+
+  .word-count {
     font-size: 12px;
   }
 

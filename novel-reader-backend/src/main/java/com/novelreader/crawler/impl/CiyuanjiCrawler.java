@@ -332,20 +332,35 @@ public class CiyuanjiCrawler implements BaseCrawler {
             }
         }
 
-        Element totalElement = doc.select(".book_detail_total__b1b1O").first();
-        if (totalElement != null) {
-            String totalText = totalElement.text().trim();
+        Element wordCountElement = doc.select(".book_detail_statistical__8_BoB .book_detail_num__6z_p_").first();
+        if (wordCountElement != null) {
+            String wordCountText = wordCountElement.text().trim();
             try {
-                String numStr = totalText.replaceAll("[^0-9]", "");
-                if (!numStr.isEmpty()) {
-                    novel.setWordCount((long) Integer.parseInt(numStr));
-                }
-            } catch (NumberFormatException e) {
-                log.debug("解析章节数失败: {}", totalText);
+                novel.setWordCount(parseWordCount(wordCountText));
+            } catch (Exception e) {
+                log.debug("解析字数失败: {}", wordCountText);
             }
         }
 
         return novel;
+    }
+
+    private Long parseWordCount(String wordCountText) {
+        if (wordCountText == null || wordCountText.isEmpty()) {
+            return null;
+        }
+        wordCountText = wordCountText.trim().toLowerCase();
+        double value;
+        if (wordCountText.endsWith("w")) {
+            String numStr = wordCountText.substring(0, wordCountText.length() - 1);
+            value = Double.parseDouble(numStr) * 10000;
+        } else if (wordCountText.endsWith("万")) {
+            String numStr = wordCountText.substring(0, wordCountText.length() - 1);
+            value = Double.parseDouble(numStr) * 10000;
+        } else {
+            value = Double.parseDouble(wordCountText);
+        }
+        return (long) value;
     }
 
     @Override

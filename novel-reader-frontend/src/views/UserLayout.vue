@@ -6,7 +6,7 @@
           <el-icon :size="24"><Reading /></el-icon>
           <span>读书网站</span>
         </div>
-        <div class="search-bar" v-if="!isFavoritesPage">
+        <div class="search-bar" v-if="!isFavoritesPage && !isMobile">
           <el-input
             v-model="searchKeyword"
             placeholder="搜索书名/作者"
@@ -79,6 +79,7 @@ const route = useRoute()
 
 const searchKeyword = ref('')
 const user = ref(null)
+const isMobile = ref(false)
 
 const isAdmin = computed(() => {
   return user.value?.role === 'ADMIN'
@@ -86,6 +87,19 @@ const isAdmin = computed(() => {
 
 const isFavoritesPage = computed(() => {
   return route.path === '/favorites'
+})
+
+const checkMobile = () => {
+  isMobile.value = window.innerWidth <= 768
+}
+
+onMounted(() => {
+  checkMobile()
+  window.addEventListener('resize', checkMobile)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', checkMobile)
 })
 
 watch(() => route.query.keyword, (newKeyword) => {
@@ -297,7 +311,7 @@ onUnmounted(() => {
   }
 
   .logo span {
-    display: none;
+    display: inline;
   }
 
   .search-bar {
