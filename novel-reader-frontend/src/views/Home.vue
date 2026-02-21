@@ -465,7 +465,10 @@ const restoreScrollPosition = async () => {
     favoriteCountMin.value = filters.favoriteCountMin || ''
     sortBy.value = filters.sortBy || 'updateTime'
     sortOrder.value = filters.sortOrder || 'desc'
-    keyword.value = filters.keyword || ''
+    // 有缓存的 keyword 时恢复，用于从详情页返回的情况
+    if (filters.keyword) {
+      keyword.value = filters.keyword
+    }
   }
   
   if (savedPage) {
@@ -748,8 +751,14 @@ watch(() => route.query.keyword, (newKeyword, oldKeyword) => {
 })
 
 onMounted(async () => {
-  if (route.query.keyword) {
-    keyword.value = route.query.keyword
+  // 检查是否有之前的缓存数据，如果有则恢复，否则清空
+  const hasPreviousCache = sessionStorage.getItem('homeFilters')
+  if (!route.query.keyword && !hasPreviousCache) {
+    sessionStorage.removeItem('homeFilters')
+    sessionStorage.removeItem('homeNovelsData')
+    sessionStorage.removeItem('homeScrollPosition')
+    sessionStorage.removeItem('homeCurrentPage')
+    sessionStorage.removeItem('homeTotal')
   }
   checkMobile()
   window.addEventListener('resize', checkMobile)
@@ -1188,12 +1197,16 @@ const startTagAutoScroll = () => {
   .novel-grid {
     grid-template-columns: 1fr;
     gap: 8px;
+    min-height: auto;
+    align-content: start;
   }
 
   .novel-card {
     display: flex;
     flex-direction: row;
     padding: 6px;
+    height: auto;
+    min-height: 100px;
   }
 
   .cover-wrapper {

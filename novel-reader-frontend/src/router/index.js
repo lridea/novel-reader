@@ -105,6 +105,12 @@ const router = createRouter({
 router.beforeEach(async (to, from, next) => {
   document.title = to.meta.title ? `${to.meta.title} - 读书网站` : '读书网站'
 
+  // 首页刷新时移除 URL 中的 keyword 参数，完全回到初始状态
+  if (to.path === '/' && to.query.keyword && !from.name) {
+    next({ path: '/', query: {} })
+    return
+  }
+
   const token = localStorage.getItem('token')
   const requiresAuth = to.matched.some(record => record.meta.requiresAuth)
   const requiresAdmin = to.matched.some(record => record.meta.requiresAdmin)

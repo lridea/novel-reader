@@ -38,10 +38,10 @@ public class CrawlerScheduler {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    @Scheduled(cron = "0 0 */2 * * ?")
+    @Scheduled(fixedRate = 300000)
     public void scheduleCrawlerTask() {
         log.info("========================================");
-        log.info("🦞 开始执行定时爬虫任务");
+        log.info("🦞 开始执行定时爬虫任务检查");
         log.info("📅 时间: {}", LocalDateTime.now());
         log.info("========================================");
 
@@ -50,15 +50,37 @@ public class CrawlerScheduler {
             log.info("找到 {} 个启用的爬虫配置", configs.size());
 
             for (CrawlerConfig config : configs) {
-                dispatchCrawlerTaskAsync(config);
+                if (shouldCrawl(config)) {
+                    log.info("平台 {} 距离上次爬取已超过 {} 秒，允许执行",
+                        config.getPlatform(), config.getCrawlInterval());
+                    dispatchCrawlerTaskAsync(config);
+                } else {
+                    long elapsed = config.getLastCrawlTime() != null
+                        ? java.time.Duration.between(config.getLastCrawlTime(), LocalDateTime.now()).getSeconds()
+                        : Long.MAX_VALUE;
+                    long remaining = config.getCrawlInterval() - elapsed;
+                    log.info("平台 {} 距离上次爬取仅过去 {} 秒，还需等待 {} 秒",
+                        config.getPlatform(), elapsed, remaining);
+                }
             }
 
             log.info("========================================");
-            log.info("🦞 定时爬虫任务已分发");
+            log.info("🦞 定时爬虫任务检查完成");
             log.info("========================================");
         } catch (Exception e) {
             log.error("定时爬虫任务执行失败: {}", e.getMessage(), e);
         }
+    }
+
+    private boolean shouldCrawl(CrawlerConfig config) {
+        LocalDateTime lastCrawlTime = config.getLastCrawlTime();
+        
+        if (lastCrawlTime == null) {
+            return true;
+        }
+        
+        long elapsedSeconds = java.time.Duration.between(lastCrawlTime, LocalDateTime.now()).getSeconds();
+        return elapsedSeconds >= config.getCrawlInterval();
     }
 
     public void dispatchCrawlerTaskAsync(CrawlerConfig config) {
@@ -83,7 +105,6 @@ public class CrawlerScheduler {
 
         String errorMessage = null;
         boolean success = false;
-        LocalDateTime crawlerStartTime = LocalDateTime.now();
         try {
             BaseCrawler crawler = findCrawler(platform);
             if (crawler == null) {
@@ -101,7 +122,7 @@ public class CrawlerScheduler {
 
             log.info("平台 {} 标签: {}", platform, tags);
 
-            LocalDateTime sinceTime = crawlerTaskManager.getLastSuccessCrawlTime(platform);
+            LocalDateTime sinceTime = config.getLastCrawlTime();
             if (sinceTime != null) {
                 log.info("平台 {} 增量爬取，起始时间: {}", platform, sinceTime);
             } else {
@@ -137,7 +158,7 @@ public class CrawlerScheduler {
             errorMessage = e.getMessage();
             log.error("处理平台 {} 失败: {}", platform, e.getMessage(), e);
         } finally {
-            crawlerTaskManager.releaseLock(platform, success, errorMessage, crawlerStartTime);
+            crawlerTaskManager.releaseLock(platform, success, errorMessage);
         }
     }
 

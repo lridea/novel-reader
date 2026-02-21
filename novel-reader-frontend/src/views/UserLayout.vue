@@ -102,9 +102,13 @@ onUnmounted(() => {
   window.removeEventListener('resize', checkMobile)
 })
 
-watch(() => route.query.keyword, (newKeyword) => {
-  searchKeyword.value = newKeyword || ''
-})
+watch(() => [route.path, route.query.keyword], ([path, keyword]) => {
+  if (path === '/' && !keyword) {
+    searchKeyword.value = ''
+  } else if (keyword) {
+    searchKeyword.value = keyword
+  }
+}, { immediate: true })
 
 const onSearchInput = () => {
   sessionStorage.setItem('searchKeyword', searchKeyword.value.trim())
@@ -203,7 +207,10 @@ const handleClearSearchKeyword = () => {
 
 onMounted(() => {
   loadUser()
-  if (route.query.keyword) {
+  // 首页且没有 keyword 时清空搜索框
+  if (route.path === '/' && !route.query.keyword) {
+    searchKeyword.value = ''
+  } else if (route.query.keyword) {
     searchKeyword.value = route.query.keyword
   }
   window.addEventListener('user-info-updated', handleUserInfoUpdated)
@@ -330,6 +337,11 @@ onUnmounted(() => {
 
   .username {
     display: none;
+  }
+
+  .main {
+    flex: none;
+    min-height: auto;
   }
 }
 </style>
