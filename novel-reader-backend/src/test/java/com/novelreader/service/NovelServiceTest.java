@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -19,13 +20,19 @@ class NovelServiceTest extends BaseTest {
     @Autowired
     private NovelRepository novelRepository;
 
+    private static final AtomicLong novelIdCounter = new AtomicLong(System.currentTimeMillis());
+
+    private String generateNovelId() {
+        return "novel_" + novelIdCounter.incrementAndGet();
+    }
+
     @Test
     void testSave() {
         Novel novel = new Novel();
         novel.setTitle("测试小说");
         novel.setAuthor("测试作者");
         novel.setPlatform("test");
-        novel.setNovelId("12345");
+        novel.setNovelId(generateNovelId());
         novel.setCoverUrl("https://example.com/cover.jpg");
         novel.setDescription("测试描述");
         novel.setTags("玄幻,都市");
@@ -46,11 +53,11 @@ class NovelServiceTest extends BaseTest {
         Novel novel = new Novel();
         novel.setTitle("平台小说");
         novel.setPlatform("test");
-        novel.setNovelId("unique123");
+        novel.setNovelId(generateNovelId());
         novel.setDeleted(0);
         novelService.save(novel);
 
-        Novel found = novelService.findByPlatformAndNovelId("test", "unique123");
+        Novel found = novelService.findByPlatformAndNovelId("test", novel.getNovelId());
 
         assertNotNull(found);
         assertEquals("平台小说", found.getTitle());
@@ -68,7 +75,7 @@ class NovelServiceTest extends BaseTest {
         Novel novel = new Novel();
         novel.setTitle("平台测试");
         novel.setPlatform("ciweimao");
-        novel.setNovelId("test001");
+        novel.setNovelId(generateNovelId());
         novel.setDeleted(0);
         novelService.save(novel);
 
@@ -83,7 +90,7 @@ class NovelServiceTest extends BaseTest {
         Novel novel = new Novel();
         novel.setTitle("待删除小说");
         novel.setPlatform("test");
-        novel.setNovelId("delete001");
+        novel.setNovelId(generateNovelId());
         novel.setDeleted(0);
         Novel saved = novelService.save(novel);
 
@@ -98,14 +105,14 @@ class NovelServiceTest extends BaseTest {
         Novel novel1 = new Novel();
         novel1.setTitle("批量删除1");
         novel1.setPlatform("test");
-        novel1.setNovelId("batch001");
+        novel1.setNovelId(generateNovelId());
         novel1.setDeleted(0);
         Novel saved1 = novelService.save(novel1);
 
         Novel novel2 = new Novel();
         novel2.setTitle("批量删除2");
         novel2.setPlatform("test");
-        novel2.setNovelId("batch002");
+        novel2.setNovelId(generateNovelId());
         novel2.setDeleted(0);
         Novel saved2 = novelService.save(novel2);
 
@@ -128,7 +135,7 @@ class NovelServiceTest extends BaseTest {
         Novel novel = new Novel();
         novel.setTitle("点踩测试");
         novel.setPlatform("test");
-        novel.setNovelId("dislike001");
+        novel.setNovelId(generateNovelId());
         novel.setDislikeCount(0);
         novel.setDeleted(0);
         Novel saved = novelService.save(novel);
@@ -144,7 +151,7 @@ class NovelServiceTest extends BaseTest {
         Novel novel = new Novel();
         novel.setTitle("重复点踩");
         novel.setPlatform("test");
-        novel.setNovelId("dislike002");
+        novel.setNovelId(generateNovelId());
         novel.setDislikeCount(0);
         novel.setDeleted(0);
         Novel saved = novelService.save(novel);
@@ -161,7 +168,7 @@ class NovelServiceTest extends BaseTest {
         Novel novel = new Novel();
         novel.setTitle("取消点踩");
         novel.setPlatform("test");
-        novel.setNovelId("undislike001");
+        novel.setNovelId(generateNovelId());
         novel.setDislikeCount(0);
         novel.setDeleted(0);
         Novel saved = novelService.save(novel);
@@ -178,7 +185,7 @@ class NovelServiceTest extends BaseTest {
         Novel novel = new Novel();
         novel.setTitle("未点踩");
         novel.setPlatform("test");
-        novel.setNovelId("undislike002");
+        novel.setNovelId(generateNovelId());
         novel.setDislikeCount(0);
         novel.setDeleted(0);
         Novel saved = novelService.save(novel);
@@ -195,7 +202,7 @@ class NovelServiceTest extends BaseTest {
         novel.setTitle("搜索关键字小说");
         novel.setAuthor("搜索作者");
         novel.setPlatform("test");
-        novel.setNovelId("search001");
+        novel.setNovelId(generateNovelId());
         novel.setDeleted(0);
         novelService.save(novel);
 
@@ -209,7 +216,7 @@ class NovelServiceTest extends BaseTest {
         Novel novel = new Novel();
         novel.setTitle("高踩小说");
         novel.setPlatform("test");
-        novel.setNovelId("dislikehigh001");
+        novel.setNovelId(generateNovelId());
         novel.setDislikeCount(10);
         novel.setDeleted(0);
         novelService.save(novel);

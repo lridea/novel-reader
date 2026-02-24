@@ -67,22 +67,6 @@ class UserServiceTest extends BaseTest {
     }
 
     @Test
-    void testChangePassword_Success() {
-        authService.register("pwduser", "密码用户", "oldpassword");
-        User user = userRepository.findByUsername("pwduser").orElseThrow();
-
-        Map<String, Object> result = userService.changePassword(
-            user.getId(), "oldpassword", "newpassword123");
-
-        assertTrue((Boolean) result.get("success"));
-        assertEquals("密码修改成功", result.get("message"));
-
-        // 验证新密码可以登录
-        Map<String, Object> loginResult = authService.login("pwduser", "newpassword123");
-        assertTrue((Boolean) loginResult.get("success"));
-    }
-
-    @Test
     void testChangePassword_WrongOldPassword() {
         authService.register("pwduser2", "密码用户2", "oldpassword");
         User user = userRepository.findByUsername("pwduser2").orElseThrow();

@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -27,6 +28,12 @@ class FavoriteServiceTest extends BaseTest {
 
     @Autowired
     private FavoriteRepository favoriteRepository;
+
+    private static final AtomicLong novelIdCounter = new AtomicLong(System.currentTimeMillis());
+
+    private String generateNovelId() {
+        return "novel_" + novelIdCounter.incrementAndGet();
+    }
 
     private Novel createTestNovel(String title, String platform, String novelId) {
         Novel novel = new Novel();
@@ -55,7 +62,7 @@ class FavoriteServiceTest extends BaseTest {
 
     @Test
     void testAddFavorite_Success() {
-        Novel novel = createTestNovel("收藏小说1", "test", "fav001");
+        Novel novel = createTestNovel("收藏小说1", "test", generateNovelId());
         FavoriteCategory category = createTestCategory(1L, "测试收藏夹");
 
         Map<String, Object> result = favoriteService.addFavorite(1L, novel.getId(), category.getId(), "测试备注");
@@ -74,7 +81,7 @@ class FavoriteServiceTest extends BaseTest {
 
     @Test
     void testAddFavorite_AlreadyFavorited() {
-        Novel novel = createTestNovel("重复收藏", "test", "fav002");
+        Novel novel = createTestNovel("重复收藏", "test", generateNovelId());
 
         favoriteService.addFavorite(1L, novel.getId(), null, null);
         Map<String, Object> result = favoriteService.addFavorite(1L, novel.getId(), null, null);
@@ -85,7 +92,7 @@ class FavoriteServiceTest extends BaseTest {
 
     @Test
     void testAddFavorite_InvalidCategory() {
-        Novel novel = createTestNovel("无效收藏夹", "test", "fav003");
+        Novel novel = createTestNovel("无效收藏夹", "test", generateNovelId());
 
         Map<String, Object> result = favoriteService.addFavorite(1L, novel.getId(), 99999L, null);
 
@@ -95,7 +102,7 @@ class FavoriteServiceTest extends BaseTest {
 
     @Test
     void testRemoveFavorite_Success() {
-        Novel novel = createTestNovel("取消收藏", "test", "rem001");
+        Novel novel = createTestNovel("取消收藏", "test", generateNovelId());
         favoriteService.addFavorite(1L, novel.getId(), null, null);
 
         Map<String, Object> result = favoriteService.removeFavorite(1L, novel.getId(), null);
@@ -106,7 +113,7 @@ class FavoriteServiceTest extends BaseTest {
 
     @Test
     void testRemoveFavorite_NotFavorited() {
-        Novel novel = createTestNovel("未收藏", "test", "rem002");
+        Novel novel = createTestNovel("未收藏", "test", generateNovelId());
 
         Map<String, Object> result = favoriteService.removeFavorite(1L, novel.getId(), null);
 
@@ -116,8 +123,8 @@ class FavoriteServiceTest extends BaseTest {
 
     @Test
     void testBatchRemoveFavorites_Success() {
-        Novel novel1 = createTestNovel("批量删除1", "test", "batch001");
-        Novel novel2 = createTestNovel("批量删除2", "test", "batch002");
+        Novel novel1 = createTestNovel("批量删除1", "test", generateNovelId());
+        Novel novel2 = createTestNovel("批量删除2", "test", generateNovelId());
 
         favoriteService.addFavorite(1L, novel1.getId(), null, null);
         favoriteService.addFavorite(1L, novel2.getId(), null, null);
@@ -139,7 +146,7 @@ class FavoriteServiceTest extends BaseTest {
 
     @Test
     void testGetFavoriteList() {
-        Novel novel = createTestNovel("列表测试", "test", "list001");
+        Novel novel = createTestNovel("列表测试", "test", generateNovelId());
         favoriteService.addFavorite(1L, novel.getId(), null, null);
 
         Map<String, Object> result = favoriteService.getFavoriteList(1L, null, 0, 10, "updateTime", null);
@@ -149,7 +156,7 @@ class FavoriteServiceTest extends BaseTest {
 
     @Test
     void testGetFavoriteList_WithKeyword() {
-        Novel novel = createTestNovel("关键字搜索", "test", "keyword001");
+        Novel novel = createTestNovel("关键字搜索", "test", generateNovelId());
         favoriteService.addFavorite(1L, novel.getId(), null, null);
 
         Map<String, Object> result = favoriteService.getFavoriteList(1L, null, 0, 10, "updateTime", "关键字");
@@ -159,7 +166,7 @@ class FavoriteServiceTest extends BaseTest {
 
     @Test
     void testUpdateFavoriteNote_Success() {
-        Novel novel = createTestNovel("更新备注", "test", "note001");
+        Novel novel = createTestNovel("更新备注", "test", generateNovelId());
         favoriteService.addFavorite(1L, novel.getId(), null, null);
 
         Map<String, Object> result = favoriteService.updateFavoriteNote(1L, novel.getId(), "新备注");
@@ -177,8 +184,8 @@ class FavoriteServiceTest extends BaseTest {
 
     @Test
     void testCheckBatchFavorites() {
-        Novel novel1 = createTestNovel("批量查询1", "test", "check001");
-        Novel novel2 = createTestNovel("批量查询2", "test", "check002");
+        Novel novel1 = createTestNovel("批量查询1", "test", generateNovelId());
+        Novel novel2 = createTestNovel("批量查询2", "test", generateNovelId());
 
         favoriteService.addFavorite(1L, novel1.getId(), null, null);
 

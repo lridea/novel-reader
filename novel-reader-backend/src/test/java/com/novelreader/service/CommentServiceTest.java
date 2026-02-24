@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -22,12 +23,18 @@ class CommentServiceTest extends BaseTest {
     @Autowired
     private CommentRepository commentRepository;
 
+    private static final AtomicLong novelIdCounter = new AtomicLong(System.currentTimeMillis());
+
+    private String generateNovelId() {
+        return "novel_" + novelIdCounter.incrementAndGet();
+    }
+
     private Novel createTestNovel(String title) {
         Novel novel = new Novel();
         novel.setTitle(title);
         novel.setAuthor("测试作者");
         novel.setPlatform("test");
-        novel.setNovelId("novel_" + System.currentTimeMillis());
+        novel.setNovelId(generateNovelId());
         novel.setStatus(0);
         novel.setWordCount(100000L);
         novel.setFavoriteCount(0);

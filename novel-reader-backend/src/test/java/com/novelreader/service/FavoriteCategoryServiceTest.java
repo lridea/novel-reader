@@ -98,7 +98,10 @@ class FavoriteCategoryServiceTest extends BaseTest {
     @Test
     void testDeleteCategory_Success() {
         favoriteCategoryService.createCategory(1L, "待删除", null);
-        FavoriteCategory category = favoriteCategoryRepository.findAll().get(0);
+        FavoriteCategory category = favoriteCategoryRepository.findAll().stream()
+            .filter(c -> !c.getIsDefault())
+            .findFirst()
+            .orElseThrow();
 
         Map<String, Object> result = favoriteCategoryService.deleteCategory(1L, category.getId());
 
